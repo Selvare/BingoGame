@@ -1,0 +1,3 @@
+displayName = BINGO游戏
+author = Selvare, Mysterious
+version = 0.1
