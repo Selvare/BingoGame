@@ -8,6 +8,9 @@ UI: {
 	RuleLine: 连线
 	RuleMajority: 多数占领
 	ConfigureBoard: 配置棋盘物品
+	GiveInitialItems: 提供初始物品
+	EditInitialItems: 编辑初始物品
+	ClearPlayerItems: 清除所有玩家物品
 	UseWhitelist: 是否启用白名单
 	Enabled: 启用
 	Disabled: 禁用
@@ -19,6 +22,12 @@ UI: {
 	Delete: 删除
 	WhitelistEditorTitle: 编辑 {0}
 	WhitelistItemsHint: 使用英文逗号分隔物品 ID 或 ID 范围（如 1~50），可留空
+	InitialItemListTitle: 初始物品列表
+	InitialItemNameHint: 初始物品列表名称
+	InitialItemBuiltInName: 默认初始物品
+	InitialItemDefaultName: 初始物品列表 {0}
+	InitialItemEditorTitle: 编辑 {0}
+	InitialItemItemsHint: 使用英文逗号分隔“物品 ID 数量”，数量省略时为 1
 	Done: 完成
 	EmptyCellsRandom: 留空的格子将在开始时由服务器随机填充
 	Close: 关闭
@@ -56,6 +65,7 @@ UI: {
 		NotEnoughItems: 没有足够的物品填充第 {0} 格。
 		InvalidWhitelist: 启用的白名单包含无效物品。
 		NotEnoughWhitelistItems: 启用白名单中的不同合法物品数量少于棋盘格子数量。
+		InvalidInitialItems: 启用的初始物品列表包含无效或重复物品。
 	}
 
 	WhitelistErrors: {
@@ -64,6 +74,21 @@ UI: {
 		InvalidRange: “{0}”的范围终点不能小于起点。
 		InvalidItem: 物品 ID {0} 不可用于 BINGO 棋盘。
 		DuplicateItem: 物品 ID {0} 重复出现。
+	}
+
+	InitialItemErrors: {
+		NoEnabledList: 请先启用一个初始物品列表。
+		EmptyToken: 第 {0} 个位置缺少物品组合。
+		InvalidFormat: “{0}”不是有效的“物品 ID 数量”组合。
+		InvalidStack: “{0}”的数量必须为 1 到 9999。
+		InvalidItem: 物品 ID {0} 不能放入玩家物品栏。
+		DuplicateItem: 物品 ID {0} 重复出现。
+		TooManyItems: 一个列表最多包含 {0} 个物品组合。
+	}
+
+	InventoryActionErrors: {
+		NotHost: 只有房主可以执行此操作。
+		InvalidItems: 初始物品列表包含无效内容。
 	}
 }
 
@@ -148,6 +173,26 @@ Configs: {
 			// Tooltip: ""
 		}
 
+		InitialItemListWidth: {
+			Label: 初始物品列表宽度
+			// Tooltip: ""
+		}
+
+		InitialItemListHeight: {
+			Label: 初始物品列表高度
+			// Tooltip: ""
+		}
+
+		InitialItemEditorWidth: {
+			Label: 初始物品编辑器宽度
+			// Tooltip: ""
+		}
+
+		InitialItemEditorHeight: {
+			Label: 初始物品编辑器高度
+			// Tooltip: ""
+		}
+
 		DraftBoardSize: {
 			Label: 已保存的棋盘边长
 			Tooltip: 关闭 BINGO 窗体时保存。0 表示尚未保存草稿。
@@ -176,6 +221,11 @@ Configs: {
 			Label: 白名单
 			Tooltip: 可在 BINGO 游戏设置内使用白名单编辑器维护。
 		}
+
+		InitialItemLists: {
+			Label: 初始物品列表
+			Tooltip: 可在 BINGO 游戏设置内使用初始物品编辑器维护。
+		}
 	}
 
 	BingoWhitelistEntry: {
@@ -191,6 +241,39 @@ Configs: {
 
 		ItemTypes: {
 			Label: 物品 ID
+			// Tooltip: ""
+		}
+
+		// Tooltip: ""
+	}
+
+	BingoInitialItemListEntry: {
+		Name: {
+			Label: 名称
+			// Tooltip: ""
+		}
+
+		Enabled: {
+			Label: 启用
+			// Tooltip: ""
+		}
+
+		Items: {
+			Label: 物品与数量
+			// Tooltip: ""
+		}
+
+		// Tooltip: ""
+	}
+
+	BingoInitialItemStack: {
+		ItemType: {
+			Label: 物品 ID
+			// Tooltip: ""
+		}
+
+		Stack: {
+			Label: 数量
 			// Tooltip: ""
 		}
 

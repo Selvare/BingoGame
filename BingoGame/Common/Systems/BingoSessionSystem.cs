@@ -29,7 +29,8 @@ public enum BingoValidationError : byte
 	DuplicateItem,
 	NotEnoughItems,
 	InvalidWhitelist,
-	NotEnoughWhitelistItems
+	NotEnoughWhitelistItems,
+	InvalidInitialItems
 }
 
 public readonly record struct BingoValidationFailure(BingoValidationError Error, int CellIndex);
@@ -48,6 +49,7 @@ public sealed class BingoWorldSystem : ModSystem
 	public static byte[] Owners { get; private set; } = EmptyBytes;
 	public static byte WinningTeam { get; private set; }
 	public static bool IsDraw { get; private set; }
+	public static bool PlayersHaveInitialItems { get; private set; }
 	public static int StateRevision { get; private set; }
 
 	private static Dictionary<int, int> _cellByItemType = new();
@@ -71,6 +73,7 @@ public sealed class BingoWorldSystem : ModSystem
 		Owners = EmptyBytes;
 		WinningTeam = 0;
 		IsDraw = false;
+		PlayersHaveInitialItems = false;
 		_cellByItemType = new Dictionary<int, int>();
 		_connectionOrder = new long[Main.maxPlayers];
 		_nextConnectionOrder = 0;
@@ -106,6 +109,7 @@ public sealed class BingoWorldSystem : ModSystem
 		tag["Owners"] = Array.ConvertAll(Owners, owner => (int)owner);
 		tag["WinningTeam"] = (int)WinningTeam;
 		tag["IsDraw"] = IsDraw;
+		tag["PlayersHaveInitialItems"] = PlayersHaveInitialItems;
 	}
 
 	public override void LoadWorldData(TagCompound tag)
@@ -156,6 +160,7 @@ public sealed class BingoWorldSystem : ModSystem
 		}
 		WinningTeam = (byte)Math.Clamp(tag.GetInt("WinningTeam"), 0, 5);
 		IsDraw = tag.GetBool("IsDraw");
+		PlayersHaveInitialItems = tag.GetBool("PlayersHaveInitialItems");
 
 		if (invalidContent && Phase != BingoGamePhase.NotStarted)
 			StopGameCore();
@@ -174,6 +179,7 @@ public sealed class BingoWorldSystem : ModSystem
 		writer.Write((byte)WinRule);
 		writer.Write(WinningTeam);
 		writer.Write(IsDraw);
+		writer.Write(PlayersHaveInitialItems);
 		writer.Write((ushort)ItemTypes.Length);
 		for (int i = 0; i < ItemTypes.Length; i++)
 		{
@@ -190,6 +196,7 @@ public sealed class BingoWorldSystem : ModSystem
 		BingoWinRule rule = (BingoWinRule)reader.ReadByte();
 		byte winner = reader.ReadByte();
 		bool draw = reader.ReadBoolean();
+		bool playersHaveInitialItems = reader.ReadBoolean();
 		int count = reader.ReadUInt16();
 
 		bool valid = Enum.IsDefined(typeof(BingoGamePhase), phase)
@@ -213,6 +220,7 @@ public sealed class BingoWorldSystem : ModSystem
 		WinRule = rule;
 		WinningTeam = winner <= 5 ? winner : (byte)0;
 		IsDraw = draw;
+		PlayersHaveInitialItems = playersHaveInitialItems;
 		ItemTypes = new int[count];
 		Owners = new byte[count];
 		for (int i = 0; i < count; i++)
@@ -226,7 +234,8 @@ public sealed class BingoWorldSystem : ModSystem
 	}
 
 	internal static bool TryStartGame(int requester, int size, BingoWinRule rule, IReadOnlyList<int> requestedTypes,
-		bool whitelistEnabled, IReadOnlyList<int> whitelistTypes, out BingoValidationFailure failure)
+		bool whitelistEnabled, IReadOnlyList<int> whitelistTypes, IReadOnlyList<int> initialItemTypes,
+		out BingoValidationFailure failure)
 	{
 		failure = default;
 		if (!IsPlayerHost(requester))
@@ -254,6 +263,16 @@ public sealed class BingoWorldSystem : ModSystem
 			prepared[i] = itemType;
 		}
 
+		HashSet<int> excludedInitialItems = new();
+		if (PlayersHaveInitialItems)
+		{
+			foreach (int itemType in initialItemTypes)
+			{
+				if (!IsUsableItemId(itemType) || !excludedInitialItems.Add(itemType))
+					return Fail(BingoValidationError.InvalidInitialItems, -1, out failure);
+			}
+		}
+
 		List<int> candidates;
 		if (whitelistEnabled)
 		{
@@ -263,7 +282,7 @@ public sealed class BingoWorldSystem : ModSystem
 			{
 				if (!IsUsableItemId(itemType) || !whitelistSeen.Add(itemType))
 					return Fail(BingoValidationError.InvalidWhitelist, -1, out failure);
-				if (!selected.Contains(itemType))
+				if (!selected.Contains(itemType) && !excludedInitialItems.Contains(itemType))
 					candidates.Add(itemType);
 			}
 			if (whitelistSeen.Count < prepared.Length)
@@ -274,7 +293,8 @@ public sealed class BingoWorldSystem : ModSystem
 			candidates = new List<int>(ContentSamples.ItemsByType.Count);
 			foreach (KeyValuePair<int, Item> pair in ContentSamples.ItemsByType)
 			{
-				if (IsUsableItemId(pair.Key) && !selected.Contains(pair.Key))
+				if (IsUsableItemId(pair.Key) && !selected.Contains(pair.Key)
+					&& !excludedInitialItems.Contains(pair.Key))
 					candidates.Add(pair.Key);
 			}
 		}
@@ -307,6 +327,14 @@ public sealed class BingoWorldSystem : ModSystem
 		StopGameCore();
 		StateChanged();
 		return true;
+	}
+
+	internal static void SetPlayersHaveInitialItems(bool value)
+	{
+		if (PlayersHaveInitialItems == value)
+			return;
+		PlayersHaveInitialItems = value;
+		StateChanged();
 	}
 
 	public static void TryClaimInventory(Player player)
@@ -408,7 +436,7 @@ public sealed class BingoWorldSystem : ModSystem
 		&& Netplay.Clients[playerId].State == 10
 		&& NetMessage.DoesPlayerSlotCountAsAHost(playerId);
 
-	private static bool IsPlayerHost(int requester) => Main.netMode == NetmodeID.SinglePlayer
+	internal static bool IsPlayerHost(int requester) => Main.netMode == NetmodeID.SinglePlayer
 		|| Main.netMode == NetmodeID.Server && requester == HostPlayerId && IsEligibleLocalHost(requester);
 
 	internal static bool IsUsableItemId(int id)

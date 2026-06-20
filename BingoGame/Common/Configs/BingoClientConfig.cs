@@ -57,6 +57,18 @@ public sealed class BingoClientConfig : ModConfig
 	[DefaultValue(260)]
 	public int WhitelistEditorHeight;
 
+	[DefaultValue(620)]
+	public int InitialItemListWidth;
+
+	[DefaultValue(470)]
+	public int InitialItemListHeight;
+
+	[DefaultValue(560)]
+	public int InitialItemEditorWidth;
+
+	[DefaultValue(260)]
+	public int InitialItemEditorHeight;
+
 	[DefaultValue(0)]
 	[Range(0, 10)]
 	public int DraftBoardSize;

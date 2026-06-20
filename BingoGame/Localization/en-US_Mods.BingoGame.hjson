@@ -8,6 +8,9 @@ UI: {
 	RuleLine: Line
 	RuleMajority: Majority control
 	ConfigureBoard: Configure board items
+	GiveInitialItems: Give initial items
+	EditInitialItems: Edit initial items
+	ClearPlayerItems: Clear all player items
 	UseWhitelist: Use whitelist
 	Enabled: Enabled
 	Disabled: Disabled
@@ -19,6 +22,12 @@ UI: {
 	Delete: Delete
 	WhitelistEditorTitle: Edit {0}
 	WhitelistItemsHint: Comma-separated item IDs or ranges (for example, 1~50); may be empty
+	InitialItemListTitle: Initial item lists
+	InitialItemNameHint: Initial item list name
+	InitialItemBuiltInName: Default initial items
+	InitialItemDefaultName: Initial item list {0}
+	InitialItemEditorTitle: Edit {0}
+	InitialItemItemsHint: Comma-separated “item ID quantity” pairs; quantity defaults to 1
 	Done: Done
 	EmptyCellsRandom: Empty cells will be filled randomly by the server when the game starts
 	Close: Close
@@ -56,6 +65,7 @@ UI: {
 		NotEnoughItems: There are not enough items to fill cell {0}.
 		InvalidWhitelist: An enabled whitelist contains an invalid item.
 		NotEnoughWhitelistItems: Enabled whitelists contain fewer unique valid items than the board has cells.
+		InvalidInitialItems: The enabled initial item list contains invalid or duplicate items.
 	}
 
 	WhitelistErrors: {
@@ -64,6 +74,21 @@ UI: {
 		InvalidRange: The end of range “{0}” cannot be less than its start.
 		InvalidItem: Item ID {0} cannot be used on a BINGO board.
 		DuplicateItem: Item ID {0} appears more than once.
+	}
+
+	InitialItemErrors: {
+		NoEnabledList: Enable an initial item list first.
+		EmptyToken: Initial item pair {0} is missing.
+		InvalidFormat: “{0}” is not a valid “item ID quantity” pair.
+		InvalidStack: The quantity in “{0}” must be between 1 and 9999.
+		InvalidItem: Item ID {0} cannot be placed in a player inventory.
+		DuplicateItem: Item ID {0} appears more than once.
+		TooManyItems: A list can contain at most {0} item pairs.
+	}
+
+	InventoryActionErrors: {
+		NotHost: Only the host can perform this action.
+		InvalidItems: The initial item list contains invalid data.
 	}
 }
 
@@ -148,6 +173,26 @@ Configs: {
 			Tooltip: ""
 		}
 
+		InitialItemListWidth: {
+			Label: Initial item list width
+			Tooltip: ""
+		}
+
+		InitialItemListHeight: {
+			Label: Initial item list height
+			Tooltip: ""
+		}
+
+		InitialItemEditorWidth: {
+			Label: Initial item editor width
+			Tooltip: ""
+		}
+
+		InitialItemEditorHeight: {
+			Label: Initial item editor height
+			Tooltip: ""
+		}
+
 		DraftBoardSize: {
 			Label: Saved board size
 			Tooltip: Saved when the BINGO window closes. A value of 0 means no draft has been saved yet.
@@ -176,6 +221,11 @@ Configs: {
 			Label: Whitelists
 			Tooltip: These can be maintained through the whitelist editor in the BINGO setup window.
 		}
+
+		InitialItemLists: {
+			Label: Initial item lists
+			Tooltip: These can be maintained through the initial item editor in the BINGO setup window.
+		}
 	}
 
 	BingoWhitelistEntry: {
@@ -191,6 +241,39 @@ Configs: {
 
 		ItemTypes: {
 			Label: Item IDs
+			Tooltip: ""
+		}
+
+		Tooltip: ""
+	}
+
+	BingoInitialItemListEntry: {
+		Name: {
+			Label: Name
+			Tooltip: ""
+		}
+
+		Enabled: {
+			Label: Enabled
+			Tooltip: ""
+		}
+
+		Items: {
+			Label: Items and quantities
+			Tooltip: ""
+		}
+
+		Tooltip: ""
+	}
+
+	BingoInitialItemStack: {
+		ItemType: {
+			Label: Item ID
+			Tooltip: ""
+		}
+
+		Stack: {
+			Label: Quantity
 			Tooltip: ""
 		}
 
