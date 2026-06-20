@@ -1,0 +1,119 @@
+Keybinds.ToggleBoard.DisplayName: 显示或隐藏 BINGO 棋盘
+
+UI: {
+	Title: BINGO 游戏设置
+	GameNotStarted: 游戏未开始
+	BoardSize: 棋盘行列数
+	WinRule: 获胜规则
+	RuleLine: 连线
+	RuleMajority: 多数占领
+	ConfigureBoard: 配置棋盘物品
+	EmptyCellsRandom: 留空的格子将在开始时由服务器随机填充
+	Close: 关闭
+	StartGame: 开始游戏
+	StopGame: 停止游戏
+	Back: 返回
+	Clear: 清除
+	Lock: 锁定
+	Unlock: 解锁
+	BoardEditorTitle: 棋盘物品 ID
+	RandomHint: 随机
+	BoardTitle: BINGO · {0}
+	TeamScore: 队伍 {0}: {1}
+	NoClaims: 尚未占领格子
+	InProgress: 游戏进行中
+	Draw: 游戏结束：平局
+	TeamWon: 游戏结束：队伍 {0} 获胜
+
+	Errors: {
+		NotHost: 只有房主可以执行此操作。
+		InvalidPhase: 当前游戏阶段不允许开始新游戏。
+		InvalidSize: 棋盘行列数必须为 2 到 10。
+		InvalidRule: 获胜规则无效。
+		InvalidCellCount: 棋盘格子数量无效。
+		InvalidItem: 第 {0} 格的物品 ID 无效。
+		DuplicateItem: 第 {0} 格使用了重复的物品 ID。
+		NotEnoughItems: 没有足够的物品填充第 {0} 格。
+	}
+}
+
+Commands: {
+	StatusDescription: 查看当前 BINGO 状态。
+	NotStarted: BINGO 游戏尚未开始。
+	ScoreSeparator: ，
+	Status: "{0}×{0}，{1}，{2}。{3}"
+}
+
+Configs: {
+	BingoServerConfig: {
+		DisplayName: BINGO 服务端设置
+
+		DefaultBoardSize: {
+			Label: 默认棋盘边长
+			Tooltip: 用于初始化新世界的棋盘草稿，范围为 2 到 10。
+		}
+
+		DefaultWinRule: {
+			Label: 默认获胜规则
+			Tooltip: Line 为横、竖或对角线连线；Majority 为过半或全盘结算。
+		}
+	}
+
+	BingoClientConfig: {
+		DisplayName: BINGO 窗体尺寸
+
+		SettingsWidth: {
+			Label: 设置窗体宽度
+			// Tooltip: ""
+		}
+
+		SettingsHeight: {
+			Label: 设置窗体高度
+			// Tooltip: ""
+		}
+
+		WaitingWidth: {
+			Label: 等待窗体宽度
+			// Tooltip: ""
+		}
+
+		WaitingHeight: {
+			Label: 等待窗体高度
+			// Tooltip: ""
+		}
+
+		EditorWidth: {
+			Label: 棋盘编辑器宽度
+			// Tooltip: ""
+		}
+
+		EditorHeight: {
+			Label: 棋盘编辑器高度
+			// Tooltip: ""
+		}
+
+		GameWidth: {
+			Label: 游戏棋盘宽度
+			// Tooltip: ""
+		}
+
+		GameHeight: {
+			Label: 游戏棋盘高度
+			// Tooltip: ""
+		}
+	}
+
+	BingoWinRule: {
+		// Tooltip: ""
+
+		Line: {
+			Label: 连线
+			// Tooltip: ""
+		}
+
+		Majority: {
+			Label: 多数占领
+			// Tooltip: ""
+		}
+	}
+}

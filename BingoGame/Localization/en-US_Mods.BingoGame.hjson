@@ -1,3 +1,119 @@
-# This file will automatically update with entries for new content after a build and reload.
-# Please read https://github.com/tModLoader/tModLoader/wiki/Localization to learn more about localization and these files.
+Keybinds.ToggleBoard.DisplayName: Toggle BINGO board
 
+UI: {
+	Title: BINGO Game Setup
+	GameNotStarted: Game has not started
+	BoardSize: Board rows and columns
+	WinRule: Win rule
+	RuleLine: Line
+	RuleMajority: Majority control
+	ConfigureBoard: Configure board items
+	EmptyCellsRandom: Empty cells will be filled randomly by the server when the game starts
+	Close: Close
+	StartGame: Start game
+	StopGame: Stop game
+	Back: Back
+	Clear: Clear
+	Lock: Lock
+	Unlock: Unlock
+	BoardEditorTitle: Board item IDs
+	RandomHint: Random
+	BoardTitle: BINGO · {0}
+	TeamScore: Team {0}: {1}
+	NoClaims: No cells claimed
+	InProgress: Game in progress
+	Draw: Game over: Draw
+	TeamWon: Game over: Team {0} wins
+
+	Errors: {
+		NotHost: Only the host can perform this action.
+		InvalidPhase: A new game cannot be started in the current phase.
+		InvalidSize: Board rows and columns must be between 2 and 10.
+		InvalidRule: The win rule is invalid.
+		InvalidCellCount: The board cell count is invalid.
+		InvalidItem: The item ID in cell {0} is invalid.
+		DuplicateItem: Cell {0} uses a duplicate item ID.
+		NotEnoughItems: There are not enough items to fill cell {0}.
+	}
+}
+
+Commands: {
+	StatusDescription: Shows the current BINGO status.
+	NotStarted: The BINGO game has not started.
+	ScoreSeparator: ", "
+	Status: "{0}×{0}, {1}, {2}. {3}"
+}
+
+Configs: {
+	BingoServerConfig: {
+		DisplayName: BINGO server settings
+
+		DefaultBoardSize: {
+			Label: Default board size
+			Tooltip: Used to initialize the board draft for a new world. Valid range is 2 to 10.
+		}
+
+		DefaultWinRule: {
+			Label: Default win rule
+			Tooltip: Line checks rows, columns, and diagonals. Majority resolves after a team passes half or the board fills.
+		}
+	}
+
+	BingoClientConfig: {
+		DisplayName: BINGO window sizes
+
+		SettingsWidth: {
+			Label: Settings window width
+			Tooltip: ""
+		}
+
+		SettingsHeight: {
+			Label: Settings window height
+			Tooltip: ""
+		}
+
+		WaitingWidth: {
+			Label: Waiting window width
+			Tooltip: ""
+		}
+
+		WaitingHeight: {
+			Label: Waiting window height
+			Tooltip: ""
+		}
+
+		EditorWidth: {
+			Label: Board editor width
+			Tooltip: ""
+		}
+
+		EditorHeight: {
+			Label: Board editor height
+			Tooltip: ""
+		}
+
+		GameWidth: {
+			Label: Game board width
+			Tooltip: ""
+		}
+
+		GameHeight: {
+			Label: Game board height
+			Tooltip: ""
+		}
+	}
+
+	BingoWinRule: {
+		Tooltip: ""
+
+		Line: {
+			Label: Line
+			Tooltip: ""
+		}
+
+		Majority: {
+			Label: Majority
+			Tooltip: ""
+		}
+	}
+}
