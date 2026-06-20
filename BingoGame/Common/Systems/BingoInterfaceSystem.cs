@@ -17,12 +17,26 @@ using Terraria.UI;
 
 namespace BingoGame.Common.Systems;
 
+internal enum BingoEditorSaveStatus
+{
+	None,
+	Success,
+	Warning,
+	Failure
+}
+
+internal readonly record struct BingoEditorSaveResult(BingoEditorSaveStatus Status, string Message)
+{
+	public bool Failed => Status == BingoEditorSaveStatus.Failure;
+}
+
 [Autoload(Side = ModSide.Client)]
 public sealed class BingoUISystem : ModSystem
 {
 	private UserInterface _interface;
 	private BingoMenuState _menu;
 	private GameTime _lastUpdateTime;
+	private BingoGamePhase _lastObservedPhase;
 
 	public static bool IsEditingText => BingoNumericInput.AnyFocused || BingoTextInput.AnyFocused;
 
@@ -34,6 +48,7 @@ public sealed class BingoUISystem : ModSystem
 		_menu = new BingoMenuState();
 		_menu.Activate();
 		_menu.EnsureConfigDefaults();
+		_lastObservedPhase = BingoWorldSystem.Phase;
 	}
 
 	public override void OnWorldLoad() => Hide(true);
@@ -57,6 +72,12 @@ public sealed class BingoUISystem : ModSystem
 		{
 			Hide(true);
 			return;
+		}
+		if (_lastObservedPhase != BingoWorldSystem.Phase)
+		{
+			_lastObservedPhase = BingoWorldSystem.Phase;
+			if (_lastObservedPhase == BingoGamePhase.Finished && _interface?.CurrentState == null)
+				Show();
 		}
 
 		if (_interface?.CurrentState != null)
@@ -138,11 +159,11 @@ internal sealed class BingoMenuState : UIState
 	private bool _editingWhitelists;
 	private int _editingWhitelistIndex = -1;
 	private string _whitelistEditorText = string.Empty;
-	private string _whitelistEditorError = string.Empty;
+	private BingoEditorSaveResult _whitelistEditorResult;
 	private bool _editingInitialItemLists;
 	private int _editingInitialItemListIndex = -1;
 	private string _initialItemEditorText = string.Empty;
-	private string _initialItemEditorError = string.Empty;
+	private BingoEditorSaveResult _initialItemEditorResult;
 	private string _inventoryActionError = string.Empty;
 	private BingoValidationFailure _failure;
 	private BingoGamePhase _shownPhase;
@@ -152,6 +173,8 @@ internal sealed class BingoMenuState : UIState
 	private int _shownHeight;
 	private Vector2 _windowCenterOffset;
 	private bool _gameWindowLocked;
+	private bool _confirmingStop;
+	private BingoAdaptiveText _timerText;
 
 	public void Open()
 	{
@@ -163,6 +186,7 @@ internal sealed class BingoMenuState : UIState
 		_editingInitialItemListIndex = -1;
 		_inventoryActionError = string.Empty;
 		_failure = default;
+		_confirmingStop = false;
 		Rebuild();
 	}
 
@@ -186,6 +210,7 @@ internal sealed class BingoMenuState : UIState
 			_editingInitialItemLists = false;
 			_editingInitialItemListIndex = -1;
 			_failure = default;
+			_confirmingStop = false;
 			if (BingoWorldSystem.Phase == BingoGamePhase.NotStarted)
 				LoadDraftFromWorld();
 		}
@@ -211,9 +236,9 @@ internal sealed class BingoMenuState : UIState
 		BingoTextInput.ClearFocus();
 		bool valid = true;
 		if (_editingWhitelistIndex >= 0)
-			valid &= TryCommitWhitelistEditor();
+			valid &= !TryCommitWhitelistEditor().Failed;
 		if (_editingInitialItemListIndex >= 0)
-			valid &= TryCommitInitialItemEditor();
+			valid &= !TryCommitInitialItemEditor().Failed;
 		SaveDraftToConfig();
 		GetGameConfig().SaveChanges();
 		if (!valid && blockOnInvalid)
@@ -263,13 +288,16 @@ internal sealed class BingoMenuState : UIState
 	private void Rebuild()
 	{
 		RemoveAllChildren();
+		_timerText = null;
 		_shownPhase = BingoWorldSystem.Phase;
 		_shownHost = BingoWorldSystem.HostPlayerId;
 		_shownRevision = BingoWorldSystem.StateRevision;
 		_shownWidth = Main.screenWidth;
 		_shownHeight = Main.screenHeight;
 
-		if (BingoWorldSystem.Phase != BingoGamePhase.NotStarted)
+		if (BingoWorldSystem.Phase == BingoGamePhase.Finished)
+			BuildResultWindow();
+		else if (BingoWorldSystem.Phase == BingoGamePhase.InProgress)
 			BuildGameBoard();
 		else if (!BingoWorldSystem.IsLocalPlayerHost)
 			BuildWaitingMessage();
@@ -287,6 +315,12 @@ internal sealed class BingoMenuState : UIState
 			BuildSettings();
 	}
 
+	public override void Update(GameTime gameTime)
+	{
+		base.Update(gameTime);
+		_timerText?.SetText(BingoWorldSystem.FormatElapsed(BingoWorldSystem.GetDisplayElapsedTicks()));
+	}
+
 	private void BuildWaitingMessage()
 	{
 		BingoResponsivePanel panel = CreateWindow(BingoWindowPage.Waiting, 320f, 140f);
@@ -302,7 +336,7 @@ internal sealed class BingoMenuState : UIState
 
 	private void BuildSettings()
 	{
-		BingoResponsivePanel panel = CreateWindow(BingoWindowPage.Settings, 560f, 505f);
+		BingoResponsivePanel panel = CreateWindow(BingoWindowPage.Settings, 560f, 557f);
 		UIVerticalStack root = CreateRootStack(10f, 8f);
 		BingoAdaptiveText title = CreateText(panel, Text("UI.Title"), 0.5f, 0.5f, 1.25f, BingoTextRole.Title);
 		UIHorizontalStack sizeRow = new(12f);
@@ -330,6 +364,23 @@ internal sealed class BingoMenuState : UIState
 		ruleRow.AddWeighted(ruleControls, 7f, 210f);
 
 		BingoGameConfig gameConfig = ModContent.GetInstance<BingoGameConfig>();
+		UIHorizontalStack timeLimitRow = new(8f);
+		BingoAdaptiveText timeLimitLabel = CreateText(panel, Text("UI.UseTimeLimit"), 0f, 0.5f, 1f);
+		timeLimitRow.AddWeighted(timeLimitLabel, 3f, 130f);
+		if (gameConfig.TimeLimitEnabled)
+		{
+			BingoTextInput minutes = CreateDigitsInput(panel, Text("UI.Minutes"), gameConfig.TimeLimitMinutes, 10,
+				SetTimeLimitMinutes);
+			BingoTextInput seconds = CreateDigitsInput(panel, Text("UI.Seconds"), gameConfig.TimeLimitSeconds, 2,
+				SetTimeLimitSeconds);
+			timeLimitRow.AddWeighted(minutes, 2f, 70f);
+			timeLimitRow.AddWeighted(seconds, 2f, 70f);
+		}
+		BingoButton timeLimitToggle = CreateButton(panel,
+			Text(gameConfig.TimeLimitEnabled ? "UI.Enabled" : "UI.Disabled"), ToggleTimeLimit,
+			gameConfig.TimeLimitEnabled);
+		timeLimitRow.AddWeighted(timeLimitToggle, 2f, 80f);
+
 		UIHorizontalStack whitelistRow = new(8f);
 		BingoAdaptiveText whitelistLabel = CreateText(panel, Text("UI.UseWhitelist"), 0f, 0.5f, 1f);
 		BingoButton whitelistToggle = CreateButton(panel,
@@ -368,6 +419,7 @@ internal sealed class BingoMenuState : UIState
 		root.AddFixed(title, 36f);
 		root.AddFixed(sizeRow, 46f);
 		root.AddFixed(ruleRow, 46f);
+		root.AddFixed(timeLimitRow, 46f);
 		root.AddFixed(whitelistRow, 46f);
 		root.AddFixed(configure, 48f);
 		root.AddFixed(inventoryActions, 48f);
@@ -440,19 +492,24 @@ internal sealed class BingoMenuState : UIState
 			: entry.Name;
 		BingoAdaptiveText title = CreateText(panel, Text("UI.WhitelistEditorTitle", titleValue), 0.5f, 0.5f, 1.1f,
 			BingoTextRole.Title);
+		BingoAdaptiveText status = CreateText(panel, _whitelistEditorResult.Message, 0.5f, 0.5f, 0.75f,
+			BingoTextRole.Compact, EditorResultColor(_whitelistEditorResult.Status));
 		BingoTextInput input = new(Text("UI.WhitelistItemsHint"), _whitelistEditorText, () => panel.LayoutScale,
-			value => _whitelistEditorText = value, null, ushort.MaxValue);
-		input.IsInvalid = _whitelistEditorError.Length > 0;
-		BingoAdaptiveText error = CreateText(panel, _whitelistEditorError, 0.5f, 0.5f, 0.75f,
-			BingoTextRole.Compact, Color.OrangeRed);
+			value =>
+			{
+				_whitelistEditorText = value;
+				_whitelistEditorResult = default;
+				status.SetText(string.Empty);
+			}, null, ushort.MaxValue);
+		input.IsInvalid = _whitelistEditorResult.Failed;
 		UIHorizontalStack footer = new(12f);
 		BingoButton back = CreateButton(panel, Text("UI.Back"), CloseWhitelistEditor);
-		BingoButton done = CreateButton(panel, Text("UI.Done"), CompleteWhitelistEditor, emphasized: true);
+		BingoButton save = CreateButton(panel, Text("UI.Save"), SaveWhitelistEditor, emphasized: true);
 		footer.AddWeighted(back);
-		footer.AddWeighted(done);
+		footer.AddWeighted(save);
 		root.AddFixed(title, 34f);
 		root.AddWeighted(input, 1f, 70f);
-		root.AddFixed(error, 26f);
+		root.AddFixed(status, 26f);
 		root.AddFixed(footer, 44f);
 		panel.Append(root);
 		panel.Recalculate();
@@ -518,17 +575,22 @@ internal sealed class BingoMenuState : UIState
 			: entry.Name;
 		BingoAdaptiveText title = CreateText(panel, Text("UI.InitialItemEditorTitle", titleValue),
 			0.5f, 0.5f, 1.1f, BingoTextRole.Title);
+		BingoAdaptiveText status = CreateText(panel, _initialItemEditorResult.Message, 0.5f, 0.5f, 0.75f,
+			BingoTextRole.Compact, EditorResultColor(_initialItemEditorResult.Status));
 		BingoTextInput input = new(Text("UI.InitialItemItemsHint"), _initialItemEditorText,
-			() => panel.LayoutScale, value => _initialItemEditorText = value, null, ushort.MaxValue);
-		input.IsInvalid = _initialItemEditorError.Length > 0;
-		BingoAdaptiveText error = CreateText(panel, _initialItemEditorError, 0.5f, 0.5f, 0.75f,
-			BingoTextRole.Compact, Color.OrangeRed);
+			() => panel.LayoutScale, value =>
+			{
+				_initialItemEditorText = value;
+				_initialItemEditorResult = default;
+				status.SetText(string.Empty);
+			}, null, ushort.MaxValue);
+		input.IsInvalid = _initialItemEditorResult.Failed;
 		UIHorizontalStack footer = new(12f);
 		footer.AddWeighted(CreateButton(panel, Text("UI.Back"), CloseInitialItemEditor));
-		footer.AddWeighted(CreateButton(panel, Text("UI.Done"), CompleteInitialItemEditor, emphasized: true));
+		footer.AddWeighted(CreateButton(panel, Text("UI.Save"), SaveInitialItemEditor, emphasized: true));
 		root.AddFixed(title, 34f);
 		root.AddWeighted(input, 1f, 70f);
-		root.AddFixed(error, 26f);
+		root.AddFixed(status, 26f);
 		root.AddFixed(footer, 44f);
 		panel.Append(root);
 		panel.Recalculate();
@@ -588,13 +650,14 @@ internal sealed class BingoMenuState : UIState
 			defaultCellSize * size + 40f, defaultCellSize * size + footerHeight);
 		panel.Locked = _gameWindowLocked && BingoWorldSystem.Phase == BingoGamePhase.InProgress;
 		UIVerticalStack root = CreateRootStack(6f, 8f);
-		UIElement header = new();
+		UIHorizontalStack header = new(8f);
 		string title = BingoWorldSystem.WinRule == BingoWinRule.Line ? Text("UI.RuleLine") : Text("UI.RuleMajority");
 		BingoAdaptiveText titleText = CreateText(panel, Text("UI.BoardTitle", title), 0.5f, 0.5f, 1.1f,
 			BingoTextRole.Title);
-		titleText.Width.Set(0f, 1f);
-		titleText.Height.Set(0f, 1f);
-		header.Append(titleText);
+		_timerText = CreateText(panel, BingoWorldSystem.FormatElapsed(BingoWorldSystem.GetDisplayElapsedTicks()),
+			0.5f, 0.5f, 0.92f, BingoTextRole.Compact);
+		header.AddFixed(_timerText, 70f);
+		header.AddWeighted(titleText, 1f, 120f);
 
 		BingoBoardElement board = new(size, () => panel.BorderColor);
 
@@ -620,12 +683,27 @@ internal sealed class BingoMenuState : UIState
 		UIElement stopRow = null;
 		if (host)
 		{
-			BingoButton stop = CreateButton(panel, Text("UI.StopGame"), BingoGame.RequestStop, emphasized: true);
-			stop.Width.Set(120f, 0f);
-			stop.Height.Set(0f, 1f);
-			stop.HAlign = 0.5f;
-			stopRow = new UIElement();
-			stopRow.Append(stop);
+			if (_confirmingStop)
+			{
+				UIHorizontalStack confirmation = new(8f);
+				confirmation.AddWeighted(CreateButton(panel, Text("UI.SettleGame"),
+					() => RequestEnd(BingoEndAction.Settle), emphasized: true, textRole: BingoTextRole.Compact));
+				confirmation.AddWeighted(CreateButton(panel, Text("UI.CancelGame"),
+					() => RequestEnd(BingoEndAction.Cancel), textRole: BingoTextRole.Compact,
+					backgroundColor: BingoUITheme.DangerBackground));
+				confirmation.AddWeighted(CreateButton(panel, Text("UI.Return"), CancelStopConfirmation,
+					textRole: BingoTextRole.Compact));
+				stopRow = confirmation;
+			}
+			else
+			{
+				BingoButton stop = CreateButton(panel, Text("UI.StopGame"), ShowStopConfirmation, emphasized: true);
+				stop.Width.Set(120f, 0f);
+				stop.Height.Set(0f, 1f);
+				stop.HAlign = 0.5f;
+				stopRow = new UIElement();
+				stopRow.Append(stop);
+			}
 		}
 
 		BingoButton lockButton = null;
@@ -633,12 +711,12 @@ internal sealed class BingoMenuState : UIState
 		{
 			lockButton = CreateButton(panel, Text(_gameWindowLocked ? "UI.Unlock" : "UI.Lock"),
 				ToggleGameWindowLock, selected: _gameWindowLocked, textRole: BingoTextRole.Compact);
-			lockButton.Width.Set(70f, 0f);
-			lockButton.Height.Set(0f, 1f);
-			lockButton.HAlign = 1f;
-			header.Append(lockButton);
 			panel.DragExclusion = lockButton;
 		}
+		if (lockButton != null)
+			header.AddFixed(lockButton, 70f);
+		else
+			header.AddFixed(new UIElement(), 70f);
 		root.AddFixed(header, 32f);
 		root.AddWeighted(board, 1f, size * 24f);
 		root.AddFixed(scoreRow, 22f);
@@ -647,6 +725,61 @@ internal sealed class BingoMenuState : UIState
 			root.AddFixed(stopRow, 32f);
 		panel.Append(root);
 		panel.Recalculate();
+	}
+
+	private void BuildResultWindow()
+	{
+		BingoResponsivePanel panel = CreateWindow(BingoWindowPage.Result, 400f, 300f, 460f, 360f);
+		UIVerticalStack root = CreateRootStack(8f, 8f);
+		BingoAdaptiveText title = CreateText(panel, ResultText(), 0.5f, 0.5f, 1.15f,
+			BingoTextRole.Title, ResultColor());
+		BingoScrollList standings = new(6f);
+		IReadOnlyList<BingoTeamStanding> teamStandings = BingoWorldSystem.GetTeamStandings();
+		if (teamStandings.Count == 0)
+		{
+			BingoAdaptiveText empty = CreateText(panel, Text("UI.NoClaims"), 0.5f, 0.5f, 0.86f,
+				BingoTextRole.Compact, Color.Silver);
+			standings.AddRow(empty, 40f);
+		}
+		else
+		{
+			foreach (BingoTeamStanding standing in teamStandings)
+			{
+				BingoAdaptiveText row = CreateText(panel,
+					Text("UI.TeamRanking", standing.Rank, BingoTeamDisplay.GetName(standing.Team), standing.Score),
+					0.5f, 0.5f, 0.9f, BingoTextRole.Compact, BingoTeamDisplay.GetColor(standing.Team));
+				standings.AddRow(row, 40f);
+			}
+		}
+
+		UIHorizontalStack footer = new(12f);
+		footer.AddWeighted(CreateButton(panel, Text("UI.Close"), BingoUISystem.Toggle));
+		if (BingoWorldSystem.IsLocalPlayerHost)
+			footer.AddWeighted(CreateButton(panel, Text("UI.NewGame"),
+				() => BingoGame.RequestEnd(BingoEndAction.Reset), emphasized: true));
+		root.AddFixed(title, 42f);
+		root.AddWeighted(standings, 1f, 160f);
+		root.AddFixed(footer, 48f);
+		panel.Append(root);
+		panel.Recalculate();
+	}
+
+	private void ShowStopConfirmation()
+	{
+		_confirmingStop = true;
+		Rebuild();
+	}
+
+	private void CancelStopConfirmation()
+	{
+		_confirmingStop = false;
+		Rebuild();
+	}
+
+	private void RequestEnd(BingoEndAction action)
+	{
+		_confirmingStop = false;
+		BingoGame.RequestEnd(action);
 	}
 
 	private void ToggleGameWindowLock()
@@ -762,11 +895,34 @@ internal sealed class BingoMenuState : UIState
 		Rebuild();
 	}
 
+	private void ToggleTimeLimit()
+	{
+		BingoGameConfig config = GetGameConfig();
+		config.TimeLimitEnabled = !config.TimeLimitEnabled;
+		_failure = default;
+		config.SaveChanges();
+		Rebuild();
+	}
+
+	private void SetTimeLimitMinutes(int value)
+	{
+		GetGameConfig().TimeLimitMinutes = value;
+		if (_failure.Error == BingoValidationError.InvalidTimeLimit)
+			_failure = default;
+	}
+
+	private void SetTimeLimitSeconds(int value)
+	{
+		GetGameConfig().TimeLimitSeconds = value;
+		if (_failure.Error == BingoValidationError.InvalidTimeLimit)
+			_failure = default;
+	}
+
 	private void OpenWhitelistList()
 	{
 		_editingWhitelists = true;
 		_editingWhitelistIndex = -1;
-		_whitelistEditorError = string.Empty;
+		_whitelistEditorResult = default;
 		Rebuild();
 	}
 
@@ -834,113 +990,107 @@ internal sealed class BingoMenuState : UIState
 			return;
 		_editingWhitelistIndex = index;
 		_whitelistEditorText = string.Join(",", config.Whitelists[index].ItemTypes);
-		_whitelistEditorError = string.Empty;
+		_whitelistEditorResult = default;
 		Rebuild();
 	}
 
 	private void CloseWhitelistEditor()
 	{
 		BingoTextInput.ClearFocus(false);
-		if (!TryCommitWhitelistEditor())
+		if (TryCommitWhitelistEditor().Failed)
 		{
 			Rebuild();
 			return;
 		}
 		_editingWhitelistIndex = -1;
-		_whitelistEditorError = string.Empty;
+		_whitelistEditorResult = default;
 		Rebuild();
 	}
 
-	private void CompleteWhitelistEditor()
+	private void SaveWhitelistEditor()
 	{
 		BingoTextInput.ClearFocus(false);
-		if (!TryCommitWhitelistEditor())
-		{
-			Rebuild();
-			return;
-		}
-		_editingWhitelistIndex = -1;
-		_whitelistEditorError = string.Empty;
+		TryCommitWhitelistEditor();
 		Rebuild();
 	}
 
-	private bool TryCommitWhitelistEditor()
+	private BingoEditorSaveResult TryCommitWhitelistEditor()
 	{
-		if (!TryParseWhitelistItems(_whitelistEditorText, out List<int> itemTypes, out string error))
-		{
-			_whitelistEditorError = error;
-			return false;
-		}
+		BingoEditorSaveResult result = ParseWhitelistItems(_whitelistEditorText, out List<int> itemTypes);
+		if (result.Failed)
+			return _whitelistEditorResult = result;
 		BingoGameConfig config = GetGameConfig();
 		if (_editingWhitelistIndex < 0 || _editingWhitelistIndex >= config.Whitelists.Count)
-			return false;
+			return _whitelistEditorResult = SaveFailure(Text("UI.SaveStatus.Unavailable"));
 		config.Whitelists[_editingWhitelistIndex].ItemTypes = itemTypes;
 		config.SaveChanges();
-		_whitelistEditorError = string.Empty;
-		return true;
+		return _whitelistEditorResult = result;
 	}
 
-	private static bool TryParseWhitelistItems(string value, out List<int> itemTypes, out string error)
+	private static BingoEditorSaveResult ParseWhitelistItems(string value, out List<int> itemTypes)
 	{
 		itemTypes = new List<int>();
-		error = string.Empty;
 		if (string.IsNullOrWhiteSpace(value))
-			return true;
+			return SaveSuccess();
 
 		HashSet<int> seen = new();
+		int filteredCount = 0;
 		string[] tokens = value.Split(',');
 		for (int i = 0; i < tokens.Length; i++)
 		{
 			string token = tokens[i].Trim();
 			if (token.Length == 0)
 			{
-				error = Text("UI.WhitelistErrors.EmptyToken", i + 1);
-				return false;
+				return SaveFailure(Text("UI.WhitelistErrors.EmptyToken", i + 1));
 			}
 			Match match = WhitelistTokenPattern.Match(token);
 			if (!match.Success || !int.TryParse(match.Groups["start"].Value, out int start))
 			{
-				error = Text("UI.WhitelistErrors.InvalidNumber", token);
-				return false;
+				return SaveFailure(Text("UI.WhitelistErrors.InvalidNumber", token));
 			}
 
 			int end = start;
 			if (match.Groups["end"].Success && !int.TryParse(match.Groups["end"].Value, out end))
 			{
-				error = Text("UI.WhitelistErrors.InvalidNumber", token);
-				return false;
+				return SaveFailure(Text("UI.WhitelistErrors.InvalidNumber", token));
 			}
 			if (end < start)
 			{
-				error = Text("UI.WhitelistErrors.InvalidRange", token);
-				return false;
+				return SaveFailure(Text("UI.WhitelistErrors.InvalidRange", token));
 			}
 
 			for (int itemType = start; ; itemType++)
 			{
+				if (!BingoWorldSystem.IsExistingItemId(itemType))
+				{
+					return SaveFailure(Text("UI.WhitelistErrors.InvalidItem", itemType));
+				}
 				if (!BingoWorldSystem.IsUsableItemId(itemType))
 				{
-					error = Text("UI.WhitelistErrors.InvalidItem", itemType);
-					return false;
+					filteredCount++;
+					if (itemType == end)
+						break;
+					continue;
 				}
 				if (!seen.Add(itemType))
 				{
-					error = Text("UI.WhitelistErrors.DuplicateItem", itemType);
-					return false;
+					return SaveFailure(Text("UI.WhitelistErrors.DuplicateItem", itemType));
 				}
 				itemTypes.Add(itemType);
 				if (itemType == end)
 					break;
 			}
 		}
-		return true;
+		return filteredCount > 0
+			? SaveWarning(Text("UI.WhitelistErrors.FilteredItems", filteredCount))
+			: SaveSuccess();
 	}
 
 	private void OpenInitialItemList()
 	{
 		_editingInitialItemLists = true;
 		_editingInitialItemListIndex = -1;
-		_initialItemEditorError = string.Empty;
+		_initialItemEditorResult = default;
 		_inventoryActionError = string.Empty;
 		Rebuild();
 	}
@@ -1014,90 +1164,106 @@ internal sealed class BingoMenuState : UIState
 		_editingInitialItemListIndex = index;
 		_initialItemEditorText = string.Join(",", config.InitialItemLists[index].Items.Select(item =>
 			item.Stack == 1 ? item.ItemType.ToString() : $"{item.ItemType} {item.Stack}"));
-		_initialItemEditorError = string.Empty;
+		_initialItemEditorResult = default;
 		Rebuild();
 	}
 
 	private void CloseInitialItemEditor()
 	{
 		BingoTextInput.ClearFocus(false);
-		if (!TryCommitInitialItemEditor())
+		if (TryCommitInitialItemEditor().Failed)
 		{
 			Rebuild();
 			return;
 		}
 		_editingInitialItemListIndex = -1;
-		_initialItemEditorError = string.Empty;
+		_initialItemEditorResult = default;
 		Rebuild();
 	}
 
-	private void CompleteInitialItemEditor() => CloseInitialItemEditor();
-
-	private bool TryCommitInitialItemEditor()
+	private void SaveInitialItemEditor()
 	{
-		if (!TryParseInitialItems(_initialItemEditorText, out List<BingoInitialItemStack> items, out string error))
-		{
-			_initialItemEditorError = error;
-			return false;
-		}
-		BingoGameConfig config = GetGameConfig();
-		if (_editingInitialItemListIndex < 0 || _editingInitialItemListIndex >= config.InitialItemLists.Count)
-			return false;
-		config.InitialItemLists[_editingInitialItemListIndex].Items = items;
-		config.SaveChanges();
-		_initialItemEditorError = string.Empty;
-		return true;
+		BingoTextInput.ClearFocus(false);
+		TryCommitInitialItemEditor();
+		Rebuild();
 	}
 
-	private static bool TryParseInitialItems(string value, out List<BingoInitialItemStack> items, out string error)
+	private BingoEditorSaveResult TryCommitInitialItemEditor()
+	{
+		BingoEditorSaveResult result = ParseInitialItems(_initialItemEditorText, out List<BingoInitialItemStack> items);
+		if (result.Failed)
+			return _initialItemEditorResult = result;
+		BingoGameConfig config = GetGameConfig();
+		if (_editingInitialItemListIndex < 0 || _editingInitialItemListIndex >= config.InitialItemLists.Count)
+			return _initialItemEditorResult = SaveFailure(Text("UI.SaveStatus.Unavailable"));
+		config.InitialItemLists[_editingInitialItemListIndex].Items = items;
+		config.SaveChanges();
+		return _initialItemEditorResult = result;
+	}
+
+	private static BingoEditorSaveResult ParseInitialItems(string value, out List<BingoInitialItemStack> items)
 	{
 		items = new List<BingoInitialItemStack>();
-		error = string.Empty;
 		if (string.IsNullOrWhiteSpace(value))
-			return true;
+			return SaveSuccess();
 
 		HashSet<int> seen = new();
+		int oversizedStackCount = 0;
 		string[] tokens = value.Split(',');
 		if (tokens.Length > 512)
-		{
-			error = Text("UI.InitialItemErrors.TooManyItems", 512);
-			return false;
-		}
+			return SaveFailure(Text("UI.InitialItemErrors.TooManyItems", 512));
 		for (int i = 0; i < tokens.Length; i++)
 		{
 			string token = tokens[i].Trim();
 			if (token.Length == 0)
 			{
-				error = Text("UI.InitialItemErrors.EmptyToken", i + 1);
-				return false;
+				return SaveFailure(Text("UI.InitialItemErrors.EmptyToken", i + 1));
 			}
 			Match match = InitialItemTokenPattern.Match(token);
 			if (!match.Success || !int.TryParse(match.Groups["id"].Value, out int itemType))
 			{
-				error = Text("UI.InitialItemErrors.InvalidFormat", token);
-				return false;
+				return SaveFailure(Text("UI.InitialItemErrors.InvalidFormat", token));
 			}
 			int stack = 1;
 			if (match.Groups["stack"].Success
 				&& (!int.TryParse(match.Groups["stack"].Value, out stack) || stack is < 1 or > 9999))
 			{
-				error = Text("UI.InitialItemErrors.InvalidStack", token);
-				return false;
+				return SaveFailure(Text("UI.InitialItemErrors.InvalidStack", token));
 			}
 			if (!BingoWorldSystem.IsUsableItemId(itemType))
 			{
-				error = Text("UI.InitialItemErrors.InvalidItem", itemType);
-				return false;
+				return SaveFailure(Text("UI.InitialItemErrors.InvalidItem", itemType));
 			}
 			if (!seen.Add(itemType))
 			{
-				error = Text("UI.InitialItemErrors.DuplicateItem", itemType);
-				return false;
+				return SaveFailure(Text("UI.InitialItemErrors.DuplicateItem", itemType));
 			}
+			if (ContentSamples.ItemsByType.TryGetValue(itemType, out Item sample)
+				&& stack > Math.Max(1, sample.maxStack))
+				oversizedStackCount++;
 			items.Add(new BingoInitialItemStack(itemType, stack));
 		}
-		return true;
+		return oversizedStackCount > 0
+			? SaveWarning(Text("UI.InitialItemErrors.ExceedsMaxStack", oversizedStackCount))
+			: SaveSuccess();
 	}
+
+	private static BingoEditorSaveResult SaveSuccess() => new(BingoEditorSaveStatus.Success,
+		Text("UI.SaveStatus.Success"));
+
+	private static BingoEditorSaveResult SaveWarning(string message) => new(BingoEditorSaveStatus.Warning,
+		Text("UI.SaveStatus.Warning", message));
+
+	private static BingoEditorSaveResult SaveFailure(string message) => new(BingoEditorSaveStatus.Failure,
+		Text("UI.SaveStatus.Failure", message));
+
+	private static Color EditorResultColor(BingoEditorSaveStatus status) => status switch
+	{
+		BingoEditorSaveStatus.Success => new Color(80, 210, 90),
+		BingoEditorSaveStatus.Warning => new Color(235, 210, 65),
+		BingoEditorSaveStatus.Failure => Color.OrangeRed,
+		_ => Color.White
+	};
 
 	private void GiveInitialItems()
 	{
@@ -1131,6 +1297,13 @@ internal sealed class BingoMenuState : UIState
 			return;
 		}
 		BingoGameConfig config = GetGameConfig();
+		if (config.TimeLimitEnabled
+			&& (config.TimeLimitMinutes < 0 || config.TimeLimitSeconds is < 0 or > 59
+				|| config.TimeLimitMinutes == 0 && config.TimeLimitSeconds == 0))
+		{
+			SetValidationFailure(new BingoValidationFailure(BingoValidationError.InvalidTimeLimit, -1));
+			return;
+		}
 		if (!TryBuildWhitelistPool(config, out int[] whitelistTypes, out BingoValidationFailure whitelistFailure))
 		{
 			SetValidationFailure(whitelistFailure);
@@ -1142,7 +1315,8 @@ internal sealed class BingoMenuState : UIState
 		int[] initialItemTypes = enabledInitialItems?.Items.Select(item => item.ItemType).ToArray()
 			?? Array.Empty<int>();
 		BingoGame.RequestStart(_draftSize, _draftRule, (int[])_draftItems.Clone(), config.WhitelistEnabled,
-			whitelistTypes, initialItemTypes);
+			whitelistTypes, initialItemTypes, config.TimeLimitEnabled, config.TimeLimitMinutes,
+			config.TimeLimitSeconds);
 	}
 
 	private bool TryBuildWhitelistPool(BingoGameConfig config, out int[] itemTypes,
@@ -1245,6 +1419,7 @@ internal sealed class BingoMenuState : UIState
 			BingoWindowPage.Waiting => new Vector2(config.WaitingWidth, config.WaitingHeight),
 			BingoWindowPage.Editor => new Vector2(config.EditorWidth, config.EditorHeight),
 			BingoWindowPage.Game => new Vector2(config.GameWidth, config.GameHeight),
+			BingoWindowPage.Result => new Vector2(config.ResultWidth, config.ResultHeight),
 			BingoWindowPage.WhitelistList => new Vector2(config.WhitelistListWidth, config.WhitelistListHeight),
 			BingoWindowPage.WhitelistEditor => new Vector2(config.WhitelistEditorWidth, config.WhitelistEditorHeight),
 			BingoWindowPage.InitialItemList => new Vector2(config.InitialItemListWidth, config.InitialItemListHeight),
@@ -1276,6 +1451,10 @@ internal sealed class BingoMenuState : UIState
 				config.GameWidth = roundedWidth;
 				config.GameHeight = roundedHeight;
 				break;
+			case BingoWindowPage.Result:
+				config.ResultWidth = roundedWidth;
+				config.ResultHeight = roundedHeight;
+				break;
 			case BingoWindowPage.WhitelistList:
 				config.WhitelistListWidth = roundedWidth;
 				config.WhitelistListHeight = roundedHeight;
@@ -1303,6 +1482,14 @@ internal sealed class BingoMenuState : UIState
 		if (color.HasValue)
 			text.TextColor = color.Value;
 		return text;
+	}
+
+	private static BingoTextInput CreateDigitsInput(BingoResponsivePanel panel, string hint, int value,
+		int maxLength, Action<int> changed)
+	{
+		return new BingoTextInput(hint, value > 0 ? value.ToString() : string.Empty, () => panel.LayoutScale,
+			text => changed(string.IsNullOrEmpty(text) ? 0 : int.TryParse(text, out int parsed) ? parsed : -1),
+			null, maxLength, char.IsDigit);
 	}
 
 	private static BingoButton CreateButton(BingoResponsivePanel panel, string label, Action action,
@@ -1351,6 +1538,7 @@ internal enum BingoWindowPage
 	Waiting,
 	Editor,
 	Game,
+	Result,
 	WhitelistList,
 	WhitelistEditor,
 	InitialItemList,
@@ -1863,15 +2051,7 @@ internal sealed class BingoBoardElement : UIElement
 		}
 	}
 
-	internal static Color GetTeamColor(int team) => team switch
-	{
-		1 => new Color(230, 70, 70),
-		2 => new Color(80, 210, 90),
-		3 => new Color(75, 135, 235),
-		4 => new Color(235, 210, 65),
-		5 => new Color(225, 105, 205),
-		_ => Color.Gray
-	};
+	internal static Color GetTeamColor(int team) => BingoTeamDisplay.GetColor(team);
 }
 
 internal sealed class BingoBoardCell : UIPanel

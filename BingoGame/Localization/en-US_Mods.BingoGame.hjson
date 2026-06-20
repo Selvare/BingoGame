@@ -5,6 +5,9 @@ UI: {
 	GameNotStarted: Game has not started
 	BoardSize: Board rows and columns
 	WinRule: Win rule
+	UseTimeLimit: Use time limit
+	Minutes: Minutes
+	Seconds: Seconds
 	RuleLine: Line
 	RuleMajority: Majority control
 	ConfigureBoard: Configure board items
@@ -29,10 +32,15 @@ UI: {
 	InitialItemEditorTitle: Edit {0}
 	InitialItemItemsHint: Comma-separated “item ID quantity” pairs; quantity defaults to 1
 	Done: Done
+	Save: Save
 	EmptyCellsRandom: Empty cells will be filled randomly by the server when the game starts
 	Close: Close
 	StartGame: Start game
 	StopGame: Stop game
+	SettleGame: Settle
+	CancelGame: Cancel game
+	Return: Return
+	NewGame: New game
 	Back: Back
 	Clear: Clear
 	Lock: Lock
@@ -45,6 +53,7 @@ UI: {
 	InProgress: Game in progress
 	Draw: Game over: Draw
 	TeamWon: Game over: {0} wins
+	TeamRanking: "{0}. {1}, {2} cells"
 
 	TeamNames: {
 		Red: Red Team
@@ -66,6 +75,7 @@ UI: {
 		InvalidWhitelist: An enabled whitelist contains an invalid item.
 		NotEnoughWhitelistItems: Enabled whitelists contain fewer unique valid items than the board has cells.
 		InvalidInitialItems: The enabled initial item list contains invalid or duplicate items.
+		InvalidTimeLimit: When enabled, minutes cannot be negative, seconds must be between 0 and 59, and the total duration cannot be zero.
 	}
 
 	WhitelistErrors: {
@@ -74,6 +84,7 @@ UI: {
 		InvalidRange: The end of range “{0}” cannot be less than its start.
 		InvalidItem: Item ID {0} cannot be used on a BINGO board.
 		DuplicateItem: Item ID {0} appears more than once.
+		FilteredItems: Ignored {0} items excluded by the base filter.
 	}
 
 	InitialItemErrors: {
@@ -84,12 +95,26 @@ UI: {
 		InvalidItem: Item ID {0} cannot be placed in a player inventory.
 		DuplicateItem: Item ID {0} appears more than once.
 		TooManyItems: A list can contain at most {0} item pairs.
+		ExceedsMaxStack: /{0} item quantities exceed their single-stack limit and will be split when granted.
+	}
+
+	SaveStatus: {
+		Success: Success: Saved.
+		Warning: Warning: {0}
+		Failure: Failure: {0}
+		Unavailable: The edited entry no longer exists.
 	}
 
 	InventoryActionErrors: {
 		NotHost: Only the host can perform this action.
 		InvalidItems: The initial item list contains invalid data.
 	}
+}
+
+Chat: {
+	ItemClaim: "[{0}]: {1} {2} obtained {3}{4}({5})"
+	ContributionHeader: -----Contribution ranking-----
+	ContributionEntry: "{0} {1} {2}, {3}, {4}"
 }
 
 Commands: {
@@ -173,6 +198,16 @@ Configs: {
 			Tooltip: ""
 		}
 
+		ResultWidth: {
+			Label: Result window width
+			Tooltip: ""
+		}
+
+		ResultHeight: {
+			Label: Result window height
+			Tooltip: ""
+		}
+
 		InitialItemListWidth: {
 			Label: Initial item list width
 			Tooltip: ""
@@ -220,6 +255,21 @@ Configs: {
 		Whitelists: {
 			Label: Whitelists
 			Tooltip: These can be maintained through the whitelist editor in the BINGO setup window.
+		}
+
+		TimeLimitEnabled: {
+			Label: Enable time limit
+			Tooltip: Forces settlement when the configured game time is reached.
+		}
+
+		TimeLimitMinutes: {
+			Label: Time limit minutes
+			Tooltip: ""
+		}
+
+		TimeLimitSeconds: {
+			Label: Time limit seconds
+			Tooltip: Must be between 0 and 59.
 		}
 
 		InitialItemLists: {

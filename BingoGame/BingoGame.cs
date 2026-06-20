@@ -15,7 +15,7 @@ public sealed class BingoGame : Mod
 	internal enum PacketType : byte
 	{
 		RequestStart,
-		RequestStop,
+		RequestEnd,
 		StartRejected,
 		RequestGiveInitialItems,
 		ApplyGiveInitialItems,
@@ -54,8 +54,8 @@ public sealed class BingoGame : Mod
 			case PacketType.RequestStart when Main.netMode == NetmodeID.Server:
 				ReceiveStartRequest(reader, whoAmI);
 				break;
-			case PacketType.RequestStop when Main.netMode == NetmodeID.Server:
-				BingoWorldSystem.TryStopGame(whoAmI);
+			case PacketType.RequestEnd when Main.netMode == NetmodeID.Server:
+				BingoWorldSystem.TryEndGame(whoAmI, (BingoEndAction)reader.ReadByte());
 				break;
 			case PacketType.StartRejected when Main.netMode == NetmodeID.MultiplayerClient:
 				BingoUISystem.SetValidationFailure((BingoValidationError)reader.ReadByte(), reader.ReadInt16());
@@ -82,12 +82,14 @@ public sealed class BingoGame : Mod
 	}
 
 	internal static void RequestStart(int size, BingoWinRule rule, int[] itemTypes, bool whitelistEnabled,
-		int[] whitelistTypes, int[] initialItemTypes)
+		int[] whitelistTypes, int[] initialItemTypes, bool timeLimitEnabled, int timeLimitMinutes,
+		int timeLimitSeconds)
 	{
 		if (Main.netMode == NetmodeID.SinglePlayer)
 		{
 			if (!BingoWorldSystem.TryStartGame(Main.myPlayer, size, rule, itemTypes, whitelistEnabled, whitelistTypes,
-				initialItemTypes, out BingoValidationFailure failure))
+				initialItemTypes, timeLimitEnabled, timeLimitMinutes, timeLimitSeconds,
+				out BingoValidationFailure failure))
 				BingoUISystem.SetValidationFailure(failure.Error, failure.CellIndex);
 			return;
 		}
@@ -106,6 +108,9 @@ public sealed class BingoGame : Mod
 		packet.Write((byte)PacketType.RequestStart);
 		packet.Write((byte)size);
 		packet.Write((byte)rule);
+		packet.Write(timeLimitEnabled);
+		packet.Write(timeLimitMinutes);
+		packet.Write(timeLimitSeconds);
 		packet.Write((ushort)itemTypes.Length);
 		foreach (int itemType in itemTypes)
 			packet.Write(itemType);
@@ -119,16 +124,17 @@ public sealed class BingoGame : Mod
 		packet.Send();
 	}
 
-	internal static void RequestStop()
+	internal static void RequestEnd(BingoEndAction action)
 	{
 		if (Main.netMode == NetmodeID.SinglePlayer)
 		{
-			BingoWorldSystem.TryStopGame(Main.myPlayer);
+			BingoWorldSystem.TryEndGame(Main.myPlayer, action);
 			return;
 		}
 
 		ModPacket packet = ModContent.GetInstance<BingoGame>().GetPacket();
-		packet.Write((byte)PacketType.RequestStop);
+		packet.Write((byte)PacketType.RequestEnd);
+		packet.Write((byte)action);
 		packet.Send();
 	}
 
@@ -171,6 +177,9 @@ public sealed class BingoGame : Mod
 	{
 		int size = reader.ReadByte();
 		BingoWinRule rule = (BingoWinRule)reader.ReadByte();
+		bool timeLimitEnabled = reader.ReadBoolean();
+		int timeLimitMinutes = reader.ReadInt32();
+		int timeLimitSeconds = reader.ReadInt32();
 		int count = reader.ReadUInt16();
 		if (count > 100)
 		{
@@ -203,7 +212,8 @@ public sealed class BingoGame : Mod
 			initialItemTypes[i] = reader.ReadInt32();
 
 		if (!BingoWorldSystem.TryStartGame(whoAmI, size, rule, itemTypes, whitelistEnabled, whitelistTypes,
-			initialItemTypes, out BingoValidationFailure failure))
+			initialItemTypes, timeLimitEnabled, timeLimitMinutes, timeLimitSeconds,
+			out BingoValidationFailure failure))
 			SendStartRejected(whoAmI, failure);
 	}
 

@@ -1,4 +1,4 @@
 displayName = BINGO游戏
 author = Selvare, Mysterious
-version = 0.5
+version = 0.6
 buildVersion = 0.12.4

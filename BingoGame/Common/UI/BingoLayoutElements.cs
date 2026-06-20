@@ -17,7 +17,7 @@ internal enum BingoTextRole
 
 internal sealed class BingoAdaptiveText : UIElement
 {
-	private readonly string _text;
+	private string _text;
 	private readonly float _baseScale;
 	private readonly float _horizontalOrigin;
 	private readonly float _verticalOrigin;
@@ -36,6 +36,8 @@ internal sealed class BingoAdaptiveText : UIElement
 		_role = role;
 		_layoutScale = layoutScale;
 	}
+
+	public void SetText(string text) => _text = text ?? string.Empty;
 
 	protected override void DrawSelf(SpriteBatch spriteBatch)
 	{

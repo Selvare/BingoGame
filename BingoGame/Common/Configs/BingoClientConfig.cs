@@ -45,6 +45,12 @@ public sealed class BingoClientConfig : ModConfig
 	[DefaultValue(470)]
 	public int GameHeight;
 
+	[DefaultValue(460)]
+	public int ResultWidth;
+
+	[DefaultValue(360)]
+	public int ResultHeight;
+
 	[DefaultValue(620)]
 	public int WhitelistListWidth;
 

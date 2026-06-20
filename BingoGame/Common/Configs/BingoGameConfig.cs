@@ -16,6 +16,16 @@ public sealed class BingoGameConfig : ModConfig
 	[DefaultValue(false)]
 	public bool WhitelistEnabled;
 
+	[DefaultValue(false)]
+	public bool TimeLimitEnabled;
+
+	[DefaultValue(0)]
+	public int TimeLimitMinutes;
+
+	[DefaultValue(0)]
+	[Range(0, 59)]
+	public int TimeLimitSeconds;
+
 	public List<BingoWhitelistEntry> Whitelists = new();
 
 	public List<BingoInitialItemListEntry> InitialItemLists = CreateDefaultInitialItemLists();

@@ -5,6 +5,9 @@ UI: {
 	GameNotStarted: 游戏未开始
 	BoardSize: 棋盘行列数
 	WinRule: 获胜规则
+	UseTimeLimit: 是否限时
+	Minutes: 分钟
+	Seconds: 秒
 	RuleLine: 连线
 	RuleMajority: 多数占领
 	ConfigureBoard: 配置棋盘物品
@@ -29,10 +32,15 @@ UI: {
 	InitialItemEditorTitle: 编辑 {0}
 	InitialItemItemsHint: 使用英文逗号分隔“物品 ID 数量”，数量省略时为 1
 	Done: 完成
+	Save: 保存
 	EmptyCellsRandom: 留空的格子将在开始时由服务器随机填充
 	Close: 关闭
 	StartGame: 开始游戏
 	StopGame: 停止游戏
+	SettleGame: 结算
+	CancelGame: 取消本局
+	Return: 返回
+	NewGame: 新游戏
 	Back: 返回
 	Clear: 清除
 	Lock: 锁定
@@ -45,6 +53,7 @@ UI: {
 	InProgress: 游戏进行中
 	Draw: 游戏结束：平局
 	TeamWon: 游戏结束：{0}获胜
+	TeamRanking: "{0}. {1}，{2} 格"
 
 	TeamNames: {
 		Red: 红队
@@ -66,6 +75,7 @@ UI: {
 		InvalidWhitelist: 启用的白名单包含无效物品。
 		NotEnoughWhitelistItems: 启用白名单中的不同合法物品数量少于棋盘格子数量。
 		InvalidInitialItems: 启用的初始物品列表包含无效或重复物品。
+		InvalidTimeLimit: 启用限时时，分钟不能为负数、秒必须为 0 到 59，且总时长不能为 0。
 	}
 
 	WhitelistErrors: {
@@ -74,6 +84,7 @@ UI: {
 		InvalidRange: “{0}”的范围终点不能小于起点。
 		InvalidItem: 物品 ID {0} 不可用于 BINGO 棋盘。
 		DuplicateItem: 物品 ID {0} 重复出现。
+		FilteredItems: 已忽略 {0} 个被基础过滤规则排除的物品。
 	}
 
 	InitialItemErrors: {
@@ -84,12 +95,26 @@ UI: {
 		InvalidItem: 物品 ID {0} 不能放入玩家物品栏。
 		DuplicateItem: 物品 ID {0} 重复出现。
 		TooManyItems: 一个列表最多包含 {0} 个物品组合。
+		ExceedsMaxStack: 有 {0} 个物品的数量超过单堆上限，发放时会自动拆分。
+	}
+
+	SaveStatus: {
+		Success: 成功：已保存。
+		Warning: 警告：{0}
+		Failure: 失败：{0}
+		Unavailable: 当前编辑项已不存在。
 	}
 
 	InventoryActionErrors: {
 		NotHost: 只有房主可以执行此操作。
 		InvalidItems: 初始物品列表包含无效内容。
 	}
+}
+
+Chat: {
+	ItemClaim: "[{0}]: {1} {2} 获得了 {3}{4}({5})"
+	ContributionHeader: ---------贡献排行榜---------
+	ContributionEntry: "{0} {1} {2}, {3}, {4}"
 }
 
 Commands: {
@@ -173,6 +198,16 @@ Configs: {
 			// Tooltip: ""
 		}
 
+		ResultWidth: {
+			Label: 结算窗体宽度
+			// Tooltip: ""
+		}
+
+		ResultHeight: {
+			Label: 结算窗体高度
+			// Tooltip: ""
+		}
+
 		InitialItemListWidth: {
 			Label: 初始物品列表宽度
 			// Tooltip: ""
@@ -220,6 +255,21 @@ Configs: {
 		Whitelists: {
 			Label: 白名单
 			Tooltip: 可在 BINGO 游戏设置内使用白名单编辑器维护。
+		}
+
+		TimeLimitEnabled: {
+			Label: 启用限时
+			Tooltip: 启用后，达到指定游戏时间时强制结算。
+		}
+
+		TimeLimitMinutes: {
+			Label: 限时分钟
+			// Tooltip: ""
+		}
+
+		TimeLimitSeconds: {
+			Label: 限时秒数
+			Tooltip: 必须为 0 到 59。
 		}
 
 		InitialItemLists: {
