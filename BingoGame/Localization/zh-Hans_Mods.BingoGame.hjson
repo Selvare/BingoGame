@@ -101,6 +101,21 @@ Configs: {
 			Label: 游戏棋盘高度
 			// Tooltip: ""
 		}
+
+		DraftBoardSize: {
+			Label: 已保存的棋盘边长
+			Tooltip: 关闭 BINGO 窗体时保存。0 表示尚未保存草稿。
+		}
+
+		DraftWinRule: {
+			Label: 已保存的获胜规则
+			Tooltip: 关闭 BINGO 窗体时保存。
+		}
+
+		DraftItemTypes: {
+			Label: 已保存的棋盘物品 ID
+			Tooltip: 关闭 BINGO 窗体时保存。0 表示由服务器随机填充的格子。
+		}
 	}
 
 	BingoWinRule: {

@@ -101,6 +101,21 @@ Configs: {
 			Label: Game board height
 			Tooltip: ""
 		}
+
+		DraftBoardSize: {
+			Label: Saved board size
+			Tooltip: Saved when the BINGO window closes. A value of 0 means no draft has been saved yet.
+		}
+
+		DraftWinRule: {
+			Label: Saved win rule
+			Tooltip: Saved when the BINGO window closes.
+		}
+
+		DraftItemTypes: {
+			Label: Saved board item IDs
+			Tooltip: Saved when the BINGO window closes. Zero represents a cell that will be filled randomly.
+		}
 	}
 
 	BingoWinRule: {

@@ -100,6 +100,8 @@ public sealed class BingoUISystem : ModSystem
 
 	private void Hide()
 	{
+		if (_interface?.CurrentState != null)
+			_menu?.SaveDraftToConfig();
 		BingoNumericInput.ClearFocus();
 		_interface?.SetState(null);
 	}
@@ -156,8 +158,32 @@ internal sealed class BingoMenuState : UIState
 		Rebuild();
 	}
 
+	public void SaveDraftToConfig()
+	{
+		if (_draftSize is < 2 or > 10 || _draftItems.Length != _draftSize * _draftSize)
+			return;
+
+		BingoClientConfig config = ModContent.GetInstance<BingoClientConfig>();
+		config.DraftBoardSize = _draftSize;
+		config.DraftWinRule = _draftRule;
+		config.DraftItemTypes = _draftItems.ToList();
+		config.SaveChanges();
+	}
+
 	private void LoadDraftFromWorld()
 	{
+		BingoClientConfig config = ModContent.GetInstance<BingoClientConfig>();
+		if (config.DraftBoardSize is >= 2 and <= 10
+			&& config.DraftItemTypes?.Count == config.DraftBoardSize * config.DraftBoardSize)
+		{
+			_draftSize = config.DraftBoardSize;
+			_draftRule = Enum.IsDefined(typeof(BingoWinRule), config.DraftWinRule)
+				? config.DraftWinRule
+				: BingoWinRule.Line;
+			_draftItems = config.DraftItemTypes.ToArray();
+			return;
+		}
+
 		_draftSize = Math.Clamp(BingoWorldSystem.BoardSize, 2, 10);
 		_draftRule = BingoWorldSystem.WinRule;
 		_draftItems = BingoWorldSystem.ItemTypes.Length == _draftSize * _draftSize

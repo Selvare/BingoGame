@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using Terraria.ModLoader.Config;
 
@@ -30,4 +31,13 @@ public sealed class BingoClientConfig : ModConfig
 
 	[DefaultValue(470)]
 	public int GameHeight;
+
+	[DefaultValue(0)]
+	[Range(0, 10)]
+	public int DraftBoardSize;
+
+	[DefaultValue(BingoWinRule.Line)]
+	public BingoWinRule DraftWinRule;
+
+	public List<int> DraftItemTypes = new();
 }
