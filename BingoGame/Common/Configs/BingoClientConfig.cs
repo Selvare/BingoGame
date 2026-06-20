@@ -8,6 +8,18 @@ public sealed class BingoClientConfig : ModConfig
 {
 	public override ConfigScope Mode => ConfigScope.ClientSide;
 
+	[DefaultValue(0.2f)]
+	[Range(0f, 1f)]
+	[Increment(0.05f)]
+	[Slider]
+	public float InProgressUIOpacity;
+
+	[DefaultValue(0.8f)]
+	[Range(0f, 1f)]
+	[Increment(0.05f)]
+	[Slider]
+	public float InactiveUIOpacity;
+
 	[DefaultValue(620)]
 	public int SettingsWidth;
 

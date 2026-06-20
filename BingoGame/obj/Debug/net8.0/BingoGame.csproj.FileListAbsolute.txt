@@ -1,0 +1,13 @@
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\bin\Debug\net8.0\BingoGame.deps.json
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\bin\Debug\net8.0\BingoGame.dll
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\bin\Debug\net8.0\BingoGame.pdb
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\obj\Debug\net8.0\BingoGame.csproj.AssemblyReference.cache
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\obj\Debug\net8.0\BingoGame.GeneratedMSBuildEditorConfig.editorconfig
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\obj\Debug\net8.0\BingoGame.AssemblyInfoInputs.cache
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\obj\Debug\net8.0\BingoGame.AssemblyInfo.cs
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\obj\Debug\net8.0\BingoGame.csproj.CoreCompileInputs.cache
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\obj\Debug\net8.0\BingoGame.sourcelink.json
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\obj\Debug\net8.0\BingoGame.dll
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\obj\Debug\net8.0\refint\BingoGame.dll
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\obj\Debug\net8.0\BingoGame.pdb
+D:\Tools\Projects\tr_mod\BingoGame\BingoGame\obj\Debug\net8.0\ref\BingoGame.dll

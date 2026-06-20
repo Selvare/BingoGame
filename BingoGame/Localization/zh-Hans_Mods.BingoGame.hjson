@@ -19,11 +19,19 @@ UI: {
 	BoardEditorTitle: 棋盘物品 ID
 	RandomHint: 随机
 	BoardTitle: BINGO · {0}
-	TeamScore: 队伍 {0}: {1}
+	TeamScore: "{0}: {1}"
 	NoClaims: 尚未占领格子
 	InProgress: 游戏进行中
 	Draw: 游戏结束：平局
-	TeamWon: 游戏结束：队伍 {0} 获胜
+	TeamWon: 游戏结束：{0}获胜
+
+	TeamNames: {
+		Red: 红队
+		Green: 绿队
+		Blue: 蓝队
+		Yellow: 黄队
+		Pink: 粉队
+	}
 
 	Errors: {
 		NotHost: 只有房主可以执行此操作。
@@ -45,22 +53,18 @@ Commands: {
 }
 
 Configs: {
-	BingoServerConfig: {
-		DisplayName: BINGO 服务端设置
-
-		DefaultBoardSize: {
-			Label: 默认棋盘边长
-			Tooltip: 用于初始化新世界的棋盘草稿，范围为 2 到 10。
-		}
-
-		DefaultWinRule: {
-			Label: 默认获胜规则
-			Tooltip: Line 为横、竖或对角线连线；Majority 为过半或全盘结算。
-		}
-	}
-
 	BingoClientConfig: {
-		DisplayName: BINGO 窗体尺寸
+		DisplayName: UI配置
+
+		InProgressUIOpacity: {
+			Label: 游戏进行时 UI 透明度
+			Tooltip: 调整游戏进行中窗口、按钮、输入格和棋盘格背景与边框的透明度。
+		}
+
+		InactiveUIOpacity: {
+			Label: 非游戏进行时 UI 透明度
+			Tooltip: 调整游戏未开始或已经结束时窗口、按钮、输入格和棋盘格背景与边框的透明度。
+		}
 
 		SettingsWidth: {
 			Label: 设置窗体宽度

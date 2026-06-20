@@ -30,9 +30,12 @@ public sealed class BingoStatusCommand : ModCommand
 		}
 
 		string scores = string.Join(Language.GetTextValue("Mods.BingoGame.Commands.ScoreSeparator"), Enumerable.Range(1, 5)
-			.Select(team => Language.GetTextValue("Mods.BingoGame.UI.TeamScore", team, BingoWorldSystem.GetTeamScore(team))));
+			.Select(team => Language.GetTextValue("Mods.BingoGame.UI.TeamScore", BingoTeamDisplay.GetName(team),
+				BingoWorldSystem.GetTeamScore(team))));
 		string result = BingoWorldSystem.Phase == BingoGamePhase.Finished
-			? BingoWorldSystem.IsDraw ? Language.GetTextValue("Mods.BingoGame.UI.Draw") : Language.GetTextValue("Mods.BingoGame.UI.TeamWon", BingoWorldSystem.WinningTeam)
+			? BingoWorldSystem.IsDraw
+				? Language.GetTextValue("Mods.BingoGame.UI.Draw")
+				: Language.GetTextValue("Mods.BingoGame.UI.TeamWon", BingoTeamDisplay.GetName(BingoWorldSystem.WinningTeam))
 			: Language.GetTextValue("Mods.BingoGame.UI.InProgress");
 		caller.Reply(Language.GetTextValue("Mods.BingoGame.Commands.Status", BingoWorldSystem.BoardSize,
 			RuleName(BingoWorldSystem.WinRule), result, scores), Color.LightBlue);

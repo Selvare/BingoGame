@@ -77,8 +77,7 @@ public sealed class BingoWorldSystem : ModSystem
 
 	public override void OnWorldLoad()
 	{
-		BingoServerConfig config = ModContent.GetInstance<BingoServerConfig>();
-		InitializeDraft(config.DefaultBoardSize, config.DefaultWinRule);
+		InitializeDraft(5, BingoWinRule.Line);
 	}
 
 	public override void OnWorldUnload() => ClearWorld();
@@ -431,15 +430,20 @@ public sealed class BingoWorldSystem : ModSystem
 			{
 				Phase = BingoGamePhase.Finished;
 				WinningTeam = latestTeam;
+				return;
+			}
+
+			if (AllCellsClaimed())
+			{
+				Phase = BingoGamePhase.Finished;
+				IsDraw = true;
+				WinningTeam = 0;
 			}
 			return;
 		}
 
-		int claimed = 0;
-		foreach (byte owner in Owners)
-			claimed += owner != 0 ? 1 : 0;
 		int latestScore = GetTeamScore(latestTeam);
-		if (latestScore <= Owners.Length / 2 && claimed < Owners.Length)
+		if (latestScore <= Owners.Length / 2 && !AllCellsClaimed())
 			return;
 
 		int bestScore = 0;
@@ -460,6 +464,16 @@ public sealed class BingoWorldSystem : ModSystem
 		Phase = BingoGamePhase.Finished;
 		IsDraw = tied || bestTeam == 0;
 		WinningTeam = IsDraw ? (byte)0 : bestTeam;
+	}
+
+	private static bool AllCellsClaimed()
+	{
+		foreach (byte owner in Owners)
+		{
+			if (owner == 0)
+				return false;
+		}
+		return Owners.Length > 0;
 	}
 
 	private static bool HasCompletedLine(byte team)
