@@ -1,1 +1,5 @@
-Modify this file with a description of your mod.
+在单人/多人模式中进行BINGO游戏！
+用“B”键（默认键位）打开设置菜单，进行BINGO游戏的配置，并开始游戏。
+
+Play BINGO in single-player/multiplayer mode!
+Use the "B" key (default key) to open the settings menu, configure the BINGO game settings, and start the game.
