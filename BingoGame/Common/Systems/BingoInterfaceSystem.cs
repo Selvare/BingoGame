@@ -1025,21 +1025,17 @@ internal sealed class BingoBoardCell : UIPanel
 
 	protected override void DrawSelf(SpriteBatch spriteBatch)
 	{
-		BackgroundColor = Color.Transparent;
-		BorderColor = _borderColor?.Invoke() ?? Color.White;
+		BackgroundColor = _owner is >= 1 and <= 5
+			? BingoUITheme.WithOpacity(BingoBoardElement.GetTeamColor(_owner))
+			: Color.Transparent;
+		Color borderColor = _borderColor?.Invoke() ?? Color.White;
+		borderColor.A = byte.MaxValue;
+		BorderColor = borderColor;
 		base.DrawSelf(spriteBatch);
 
 		Rectangle bounds = GetDimensions().ToRectangle();
 		if (BingoWorldSystem.IsUsableItemId(_itemType))
 			BingoItemIconRenderer.Draw(spriteBatch, bounds, _itemType, 7f);
-
-		if (_owner is >= 1 and <= 5)
-		{
-			Vector2 markerPosition = new(bounds.Right - 7f, bounds.Y + 7f);
-			spriteBatch.Draw(TextureAssets.MagicPixel.Value, markerPosition, null,
-				BingoBoardElement.GetTeamColor(_owner), MathHelper.PiOver4, new Vector2(0.5f),
-				new Vector2(6f), SpriteEffects.None, 0f);
-		}
 
 		if (bounds.Contains(Main.MouseScreen.ToPoint()) && BingoWorldSystem.IsUsableItemId(_itemType))
 		{
