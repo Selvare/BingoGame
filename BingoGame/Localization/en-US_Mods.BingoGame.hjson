@@ -8,6 +8,18 @@ UI: {
 	RuleLine: Line
 	RuleMajority: Majority control
 	ConfigureBoard: Configure board items
+	UseWhitelist: Use whitelist
+	Enabled: Enabled
+	Disabled: Disabled
+	EditWhitelists: Edit whitelists
+	WhitelistListTitle: Whitelists
+	WhitelistNameHint: Whitelist name
+	WhitelistDefaultName: Whitelist {0}
+	Edit: Edit
+	Delete: Delete
+	WhitelistEditorTitle: Edit {0}
+	WhitelistItemsHint: Comma-separated item IDs or ranges (for example, 1~50); may be empty
+	Done: Done
 	EmptyCellsRandom: Empty cells will be filled randomly by the server when the game starts
 	Close: Close
 	StartGame: Start game
@@ -42,6 +54,16 @@ UI: {
 		InvalidItem: The item ID in cell {0} is invalid.
 		DuplicateItem: Cell {0} uses a duplicate item ID.
 		NotEnoughItems: There are not enough items to fill cell {0}.
+		InvalidWhitelist: An enabled whitelist contains an invalid item.
+		NotEnoughWhitelistItems: Enabled whitelists contain fewer unique valid items than the board has cells.
+	}
+
+	WhitelistErrors: {
+		EmptyToken: Item ID {0} is missing.
+		InvalidNumber: “{0}” is not a valid positive item ID or ID range.
+		InvalidRange: The end of range “{0}” cannot be less than its start.
+		InvalidItem: Item ID {0} cannot be used on a BINGO board.
+		DuplicateItem: Item ID {0} appears more than once.
 	}
 }
 
@@ -106,10 +128,34 @@ Configs: {
 			Tooltip: ""
 		}
 
+		WhitelistListWidth: {
+			Label: Whitelist list width
+			Tooltip: ""
+		}
+
+		WhitelistListHeight: {
+			Label: Whitelist list height
+			Tooltip: ""
+		}
+
+		WhitelistEditorWidth: {
+			Label: Whitelist editor width
+			Tooltip: ""
+		}
+
+		WhitelistEditorHeight: {
+			Label: Whitelist editor height
+			Tooltip: ""
+		}
+
 		DraftBoardSize: {
 			Label: Saved board size
 			Tooltip: Saved when the BINGO window closes. A value of 0 means no draft has been saved yet.
 		}
+	}
+
+	BingoGameConfig: {
+		DisplayName: Game settings
 
 		DraftWinRule: {
 			Label: Saved win rule
@@ -120,6 +166,35 @@ Configs: {
 			Label: Saved board item IDs
 			Tooltip: Saved when the BINGO window closes. Zero represents a cell that will be filled randomly.
 		}
+
+		WhitelistEnabled: {
+			Label: Enable whitelist
+			Tooltip: When enabled, random cells only use items from enabled whitelists.
+		}
+
+		Whitelists: {
+			Label: Whitelists
+			Tooltip: These can be maintained through the whitelist editor in the BINGO setup window.
+		}
+	}
+
+	BingoWhitelistEntry: {
+		Name: {
+			Label: Name
+			Tooltip: ""
+		}
+
+		Enabled: {
+			Label: Enabled
+			Tooltip: ""
+		}
+
+		ItemTypes: {
+			Label: Item IDs
+			Tooltip: ""
+		}
+
+		Tooltip: ""
 	}
 
 	BingoWinRule: {

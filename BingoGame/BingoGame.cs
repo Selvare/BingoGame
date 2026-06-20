@@ -49,12 +49,19 @@ public sealed class BingoGame : Mod
 		}
 	}
 
-	internal static void RequestStart(int size, BingoWinRule rule, int[] itemTypes)
+	internal static void RequestStart(int size, BingoWinRule rule, int[] itemTypes, bool whitelistEnabled,
+		int[] whitelistTypes)
 	{
 		if (Main.netMode == NetmodeID.SinglePlayer)
 		{
-			if (!BingoWorldSystem.TryStartGame(Main.myPlayer, size, rule, itemTypes, out BingoValidationFailure failure))
+			if (!BingoWorldSystem.TryStartGame(Main.myPlayer, size, rule, itemTypes, whitelistEnabled, whitelistTypes,
+				out BingoValidationFailure failure))
 				BingoUISystem.SetValidationFailure(failure.Error, failure.CellIndex);
+			return;
+		}
+		if (whitelistTypes.Length > ushort.MaxValue)
+		{
+			BingoUISystem.SetValidationFailure(BingoValidationError.InvalidWhitelist, -1);
 			return;
 		}
 
@@ -64,6 +71,10 @@ public sealed class BingoGame : Mod
 		packet.Write((byte)rule);
 		packet.Write((ushort)itemTypes.Length);
 		foreach (int itemType in itemTypes)
+			packet.Write(itemType);
+		packet.Write(whitelistEnabled);
+		packet.Write((ushort)whitelistTypes.Length);
+		foreach (int itemType in whitelistTypes)
 			packet.Write(itemType);
 		packet.Send();
 	}
@@ -95,8 +106,20 @@ public sealed class BingoGame : Mod
 		int[] itemTypes = new int[count];
 		for (int i = 0; i < count; i++)
 			itemTypes[i] = reader.ReadInt32();
+		bool whitelistEnabled = reader.ReadBoolean();
+		int whitelistCount = reader.ReadUInt16();
+		if (whitelistCount > ContentSamples.ItemsByType.Count)
+		{
+			SendStartRejected(whoAmI, new BingoValidationFailure(BingoValidationError.InvalidWhitelist, -1));
+			return;
+		}
 
-		if (!BingoWorldSystem.TryStartGame(whoAmI, size, rule, itemTypes, out BingoValidationFailure failure))
+		int[] whitelistTypes = new int[whitelistCount];
+		for (int i = 0; i < whitelistCount; i++)
+			whitelistTypes[i] = reader.ReadInt32();
+
+		if (!BingoWorldSystem.TryStartGame(whoAmI, size, rule, itemTypes, whitelistEnabled, whitelistTypes,
+			out BingoValidationFailure failure))
 			SendStartRejected(whoAmI, failure);
 	}
 

@@ -27,7 +27,9 @@ public enum BingoValidationError : byte
 	InvalidCellCount,
 	InvalidItem,
 	DuplicateItem,
-	NotEnoughItems
+	NotEnoughItems,
+	InvalidWhitelist,
+	NotEnoughWhitelistItems
 }
 
 public readonly record struct BingoValidationFailure(BingoValidationError Error, int CellIndex);
@@ -224,7 +226,7 @@ public sealed class BingoWorldSystem : ModSystem
 	}
 
 	internal static bool TryStartGame(int requester, int size, BingoWinRule rule, IReadOnlyList<int> requestedTypes,
-		out BingoValidationFailure failure)
+		bool whitelistEnabled, IReadOnlyList<int> whitelistTypes, out BingoValidationFailure failure)
 	{
 		failure = default;
 		if (!IsPlayerHost(requester))
@@ -252,11 +254,29 @@ public sealed class BingoWorldSystem : ModSystem
 			prepared[i] = itemType;
 		}
 
-		List<int> candidates = new(ContentSamples.ItemsByType.Count);
-		foreach (KeyValuePair<int, Item> pair in ContentSamples.ItemsByType)
+		List<int> candidates;
+		if (whitelistEnabled)
 		{
-			if (IsUsableItemId(pair.Key) && !selected.Contains(pair.Key))
-				candidates.Add(pair.Key);
+			HashSet<int> whitelistSeen = new();
+			candidates = new List<int>(whitelistTypes.Count);
+			foreach (int itemType in whitelistTypes)
+			{
+				if (!IsUsableItemId(itemType) || !whitelistSeen.Add(itemType))
+					return Fail(BingoValidationError.InvalidWhitelist, -1, out failure);
+				if (!selected.Contains(itemType))
+					candidates.Add(itemType);
+			}
+			if (whitelistSeen.Count < prepared.Length)
+				return Fail(BingoValidationError.NotEnoughWhitelistItems, -1, out failure);
+		}
+		else
+		{
+			candidates = new List<int>(ContentSamples.ItemsByType.Count);
+			foreach (KeyValuePair<int, Item> pair in ContentSamples.ItemsByType)
+			{
+				if (IsUsableItemId(pair.Key) && !selected.Contains(pair.Key))
+					candidates.Add(pair.Key);
+			}
 		}
 		for (int i = 0; i < prepared.Length; i++)
 		{
@@ -393,9 +413,17 @@ public sealed class BingoWorldSystem : ModSystem
 
 	internal static bool IsUsableItemId(int id)
 	{
-		if (id <= ItemID.None || !ContentSamples.ItemsByType.TryGetValue(id, out Item sample) || sample.IsAir)
+		if (!ContentSamples.ItemsByType.TryGetValue(id, out Item sample) || sample.IsAir)
 			return false;
-		return id >= ItemID.Count || !ItemID.Sets.Deprecated[id];
+		if (ItemID.Sets.Deprecated[id])
+			return false;
+		if (ItemID.Sets.ItemsThatShouldNotBeInInventory[id])
+			return false;
+		if (ItemID.Sets.IsAPickup[id])
+			return false;
+		if (sample.ResearchUnlockCount <= 0)
+			return false;
+		return true;
 	}
 
 	private static bool SanitizeLoadedTypes(int[] types)

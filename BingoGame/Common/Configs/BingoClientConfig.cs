@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using Newtonsoft.Json;
 using Terraria.ModLoader.Config;
 
 namespace BingoGame.Common.Configs;
@@ -44,12 +45,46 @@ public sealed class BingoClientConfig : ModConfig
 	[DefaultValue(470)]
 	public int GameHeight;
 
+	[DefaultValue(620)]
+	public int WhitelistListWidth;
+
+	[DefaultValue(470)]
+	public int WhitelistListHeight;
+
+	[DefaultValue(560)]
+	public int WhitelistEditorWidth;
+
+	[DefaultValue(260)]
+	public int WhitelistEditorHeight;
+
 	[DefaultValue(0)]
 	[Range(0, 10)]
 	public int DraftBoardSize;
 
-	[DefaultValue(BingoWinRule.Line)]
-	public BingoWinRule DraftWinRule;
+	[JsonProperty("DraftWinRule")]
+	private BingoWinRule LegacyDraftWinRule = BingoWinRule.Line;
 
-	public List<int> DraftItemTypes = new();
+	[JsonProperty("DraftItemTypes")]
+	private List<int> LegacyDraftItemTypes = new();
+
+	private bool ShouldSerializeLegacyDraftWinRule() => false;
+	private bool ShouldSerializeLegacyDraftItemTypes() => false;
+
+	internal void MigrateLegacyDraft(BingoGameConfig gameConfig)
+	{
+		LegacyDraftItemTypes ??= new List<int>();
+		gameConfig.DraftItemTypes ??= new List<int>();
+		bool hasLegacyDraft = LegacyDraftWinRule != BingoWinRule.Line || LegacyDraftItemTypes.Count > 0;
+		bool gameConfigIsDefault = gameConfig.DraftWinRule == BingoWinRule.Line
+			&& gameConfig.DraftItemTypes.Count == 0;
+		if (!hasLegacyDraft || !gameConfigIsDefault)
+			return;
+
+		gameConfig.DraftWinRule = LegacyDraftWinRule;
+		gameConfig.DraftItemTypes = new List<int>(LegacyDraftItemTypes);
+		LegacyDraftWinRule = BingoWinRule.Line;
+		LegacyDraftItemTypes.Clear();
+		gameConfig.SaveChanges();
+		SaveChanges();
+	}
 }

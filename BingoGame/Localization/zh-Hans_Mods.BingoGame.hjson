@@ -8,6 +8,18 @@ UI: {
 	RuleLine: 连线
 	RuleMajority: 多数占领
 	ConfigureBoard: 配置棋盘物品
+	UseWhitelist: 是否启用白名单
+	Enabled: 启用
+	Disabled: 禁用
+	EditWhitelists: 编辑白名单
+	WhitelistListTitle: 白名单
+	WhitelistNameHint: 白名单名称
+	WhitelistDefaultName: 白名单 {0}
+	Edit: 编辑
+	Delete: 删除
+	WhitelistEditorTitle: 编辑 {0}
+	WhitelistItemsHint: 使用英文逗号分隔物品 ID 或 ID 范围（如 1~50），可留空
+	Done: 完成
 	EmptyCellsRandom: 留空的格子将在开始时由服务器随机填充
 	Close: 关闭
 	StartGame: 开始游戏
@@ -42,6 +54,16 @@ UI: {
 		InvalidItem: 第 {0} 格的物品 ID 无效。
 		DuplicateItem: 第 {0} 格使用了重复的物品 ID。
 		NotEnoughItems: 没有足够的物品填充第 {0} 格。
+		InvalidWhitelist: 启用的白名单包含无效物品。
+		NotEnoughWhitelistItems: 启用白名单中的不同合法物品数量少于棋盘格子数量。
+	}
+
+	WhitelistErrors: {
+		EmptyToken: 第 {0} 个位置缺少物品 ID。
+		InvalidNumber: “{0}”不是有效的正整数物品 ID 或 ID 范围。
+		InvalidRange: “{0}”的范围终点不能小于起点。
+		InvalidItem: 物品 ID {0} 不可用于 BINGO 棋盘。
+		DuplicateItem: 物品 ID {0} 重复出现。
 	}
 }
 
@@ -106,10 +128,34 @@ Configs: {
 			// Tooltip: ""
 		}
 
+		WhitelistListWidth: {
+			Label: 白名单列表宽度
+			// Tooltip: ""
+		}
+
+		WhitelistListHeight: {
+			Label: 白名单列表高度
+			// Tooltip: ""
+		}
+
+		WhitelistEditorWidth: {
+			Label: 白名单编辑器宽度
+			// Tooltip: ""
+		}
+
+		WhitelistEditorHeight: {
+			Label: 白名单编辑器高度
+			// Tooltip: ""
+		}
+
 		DraftBoardSize: {
 			Label: 已保存的棋盘边长
 			Tooltip: 关闭 BINGO 窗体时保存。0 表示尚未保存草稿。
 		}
+	}
+
+	BingoGameConfig: {
+		DisplayName: 游戏配置
 
 		DraftWinRule: {
 			Label: 已保存的获胜规则
@@ -120,6 +166,35 @@ Configs: {
 			Label: 已保存的棋盘物品 ID
 			Tooltip: 关闭 BINGO 窗体时保存。0 表示由服务器随机填充的格子。
 		}
+
+		WhitelistEnabled: {
+			Label: 启用白名单
+			Tooltip: 启用后，随机格子只会从已启用白名单中选择物品。
+		}
+
+		Whitelists: {
+			Label: 白名单
+			Tooltip: 可在 BINGO 游戏设置内使用白名单编辑器维护。
+		}
+	}
+
+	BingoWhitelistEntry: {
+		Name: {
+			Label: 名称
+			// Tooltip: ""
+		}
+
+		Enabled: {
+			Label: 启用
+			// Tooltip: ""
+		}
+
+		ItemTypes: {
+			Label: 物品 ID
+			// Tooltip: ""
+		}
+
+		// Tooltip: ""
 	}
 
 	BingoWinRule: {
