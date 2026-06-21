@@ -54,6 +54,8 @@ UI: {
 	Draw: 游戏结束：平局
 	TeamWon: 游戏结束：{0}获胜
 	TeamRanking: "{0}. {1}，{2} 格"
+	ItemUnclaimed: 尚未有队伍获得此物品
+	ItemClaimed: "{0}已经获得过此物品"
 
 	TeamNames: {
 		Red: 红队

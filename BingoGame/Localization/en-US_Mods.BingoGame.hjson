@@ -54,6 +54,8 @@ UI: {
 	Draw: Game over: Draw
 	TeamWon: Game over: {0} wins
 	TeamRanking: "{0}. {1}, {2} cells"
+	ItemUnclaimed: No team has obtained this item yet
+	ItemClaimed: "{0} has already obtained this item"
 
 	TeamNames: {
 		Red: Red Team

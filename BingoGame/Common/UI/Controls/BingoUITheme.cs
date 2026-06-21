@@ -10,9 +10,12 @@ internal static class BingoUITheme
 {
 	private static byte _backgroundAlpha = 204;
 	private static byte BackgroundAlpha => _backgroundAlpha;
-	public static Color CellBackground => WithOpacity(new Color(63, 82, 151));
-	public static Color SuccessBackground => new(45, 150, 70);
-	public static Color DangerBackground => new(170, 45, 45);
+	public static readonly Color InputBackground = new(63, 82, 151);
+	public static readonly Color InputBorder = new(89, 116, 213);
+	public static readonly Color InputFocusedBorder = new(130, 210, 255);
+	public static readonly Color InputInvalidBorder = Color.OrangeRed;
+	public static readonly Color SuccessBackground = new(45, 150, 70);
+	public static readonly Color DangerBackground = new(170, 45, 45);
 
 	public static void RefreshOpacity()
 	{
@@ -51,5 +54,13 @@ internal static class BingoUITheme
 	{
 		color.A = byte.MaxValue;
 		return color;
+	}
+
+	public static void ApplyInput(UIPanel input, bool invalid, bool focused)
+	{
+		input.BackgroundColor = WithOpacity(InputBackground);
+		input.BorderColor = WithFullOpacity(invalid
+			? InputInvalidBorder
+			: focused ? InputFocusedBorder : InputBorder);
 	}
 }

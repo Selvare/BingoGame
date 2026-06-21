@@ -49,8 +49,7 @@ internal sealed partial class BingoMenuState
 	{
 		BingoEditorSaveStatus.Success => new Color(80, 210, 90),
 		BingoEditorSaveStatus.Warning => new Color(235, 210, 65),
-		BingoEditorSaveStatus.Failure => Color.OrangeRed,
+		BingoEditorSaveStatus.Failure => BingoUITheme.InputInvalidBorder,
 		_ => Color.White
 	};
 }
-

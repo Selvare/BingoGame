@@ -1,17 +1,18 @@
 using System;
 using System.Linq;
 using BingoGame.Common.UI;
+using BingoGame.Common.Tools;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
-using Terraria.GameContent;
+using Terraria.GameContent.UI.Elements;
 using Terraria.GameInput;
 using Terraria.ID;
 using Terraria.UI;
 
 namespace BingoGame.Common.Systems;
 
-internal sealed class BingoNumericInput : UIElement
+internal sealed class BingoNumericInput : UIPanel
 {
 	private static BingoNumericInput _focused;
 	private readonly string _hint;
@@ -28,6 +29,8 @@ internal sealed class BingoNumericInput : UIElement
 		_layoutScale = layoutScale;
 		_changed = changed;
 		_text = value > 0 ? value.ToString() : string.Empty;
+		SetPadding(0f);
+		OverflowHidden = true;
 		OnLeftClick += (_, _) => Focus();
 	}
 
@@ -57,12 +60,8 @@ internal sealed class BingoNumericInput : UIElement
 		Rectangle bounds = dimensions.ToRectangle();
 		bool validItem = int.TryParse(_text, out int itemType) && BingoWorldSystem.IsUsableItemId(itemType);
 		bool invalidItem = _text.Length > 0 && !validItem;
-		Color border = IsInvalid || invalidItem
-			? Color.OrangeRed
-			: _focused == this ? new Color(130, 210, 255) : new Color(89, 116, 213);
-		border = BingoUITheme.WithFullOpacity(border);
-		spriteBatch.Draw(TextureAssets.MagicPixel.Value, bounds, BingoUITheme.CellBackground);
-		DrawBorder(spriteBatch, bounds, border);
+		BingoUITheme.ApplyInput(this, IsInvalid || invalidItem, _focused == this);
+		base.DrawSelf(spriteBatch);
 
 		if (_focused == this)
 		{
@@ -86,6 +85,13 @@ internal sealed class BingoNumericInput : UIElement
 		else if (validItem)
 		{
 			BingoItemIconRenderer.Draw(spriteBatch, bounds, itemType, 8f);
+
+			if (bounds.Contains(Main.MouseScreen.ToPoint()))
+			{
+				string title = $"{Lang.GetItemNameValue(itemType)} ({itemType})";
+				string body = "";
+				BingoHoverTooltipGlobalItem.Show(new Item(itemType), title, body);
+			}
 			return;
 		}
 
@@ -105,12 +111,4 @@ internal sealed class BingoNumericInput : UIElement
 		Main.clrInput();
 	}
 
-	private static void DrawBorder(SpriteBatch spriteBatch, Rectangle rectangle, Color color)
-	{
-		spriteBatch.Draw(TextureAssets.MagicPixel.Value, new Rectangle(rectangle.X, rectangle.Y, rectangle.Width, 2), color);
-		spriteBatch.Draw(TextureAssets.MagicPixel.Value, new Rectangle(rectangle.X, rectangle.Bottom - 2, rectangle.Width, 2), color);
-		spriteBatch.Draw(TextureAssets.MagicPixel.Value, new Rectangle(rectangle.X, rectangle.Y, 2, rectangle.Height), color);
-		spriteBatch.Draw(TextureAssets.MagicPixel.Value, new Rectangle(rectangle.Right - 2, rectangle.Y, 2, rectangle.Height), color);
-	}
 }
-

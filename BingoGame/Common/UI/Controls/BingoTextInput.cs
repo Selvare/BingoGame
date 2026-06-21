@@ -4,13 +4,13 @@ using BingoGame.Common.UI;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
-using Terraria.GameContent;
+using Terraria.GameContent.UI.Elements;
 using Terraria.GameInput;
 using Terraria.UI;
 
 namespace BingoGame.Common.Systems;
 
-internal sealed class BingoTextInput : UIElement
+internal sealed class BingoTextInput : UIPanel
 {
 	private static BingoTextInput _focused;
 	private readonly string _hint;
@@ -34,6 +34,7 @@ internal sealed class BingoTextInput : UIElement
 		_committed = committed;
 		_maxLength = Math.Max(1, maxLength);
 		_allowedCharacter = allowedCharacter;
+		SetPadding(0f);
 		OverflowHidden = true;
 		OnLeftClick += (_, _) => Focus();
 	}
@@ -60,11 +61,8 @@ internal sealed class BingoTextInput : UIElement
 	protected override void DrawSelf(SpriteBatch spriteBatch)
 	{
 		Rectangle bounds = GetDimensions().ToRectangle();
-		Color border = IsInvalid ? Color.OrangeRed
-			: _focused == this ? new Color(130, 210, 255) : new Color(89, 116, 213);
-		border = BingoUITheme.WithFullOpacity(border);
-		spriteBatch.Draw(TextureAssets.MagicPixel.Value, bounds, BingoUITheme.CellBackground);
-		DrawBorder(spriteBatch, bounds, border);
+		BingoUITheme.ApplyInput(this, IsInvalid, _focused == this);
+		base.DrawSelf(spriteBatch);
 
 		if (_focused == this)
 		{
@@ -107,12 +105,4 @@ internal sealed class BingoTextInput : UIElement
 		Main.clrInput();
 	}
 
-	private static void DrawBorder(SpriteBatch spriteBatch, Rectangle rectangle, Color color)
-	{
-		spriteBatch.Draw(TextureAssets.MagicPixel.Value, new Rectangle(rectangle.X, rectangle.Y, rectangle.Width, 2), color);
-		spriteBatch.Draw(TextureAssets.MagicPixel.Value, new Rectangle(rectangle.X, rectangle.Bottom - 2, rectangle.Width, 2), color);
-		spriteBatch.Draw(TextureAssets.MagicPixel.Value, new Rectangle(rectangle.X, rectangle.Y, 2, rectangle.Height), color);
-		spriteBatch.Draw(TextureAssets.MagicPixel.Value, new Rectangle(rectangle.Right - 2, rectangle.Y, 2, rectangle.Height), color);
-	}
 }
-

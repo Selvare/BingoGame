@@ -59,11 +59,11 @@ internal sealed partial class BingoMenuState
 				UIHorizontalStack confirmation = new(8f);
 				confirmation.AddWeighted(CreateButton(panel, Text("UI.SettleGame"),
 					() => RequestEnd(BingoEndAction.Settle), emphasized: true, textRole: BingoTextRole.Compact));
+				confirmation.AddWeighted(CreateButton(panel, Text("UI.Return"), CancelStopConfirmation,
+					textRole: BingoTextRole.Compact));
 				confirmation.AddWeighted(CreateButton(panel, Text("UI.CancelGame"),
 					() => RequestEnd(BingoEndAction.Cancel), textRole: BingoTextRole.Compact,
 					backgroundColor: BingoUITheme.DangerBackground));
-				confirmation.AddWeighted(CreateButton(panel, Text("UI.Return"), CancelStopConfirmation,
-					textRole: BingoTextRole.Compact));
 				stopRow = confirmation;
 			}
 			else

@@ -113,7 +113,7 @@ internal sealed partial class BingoMenuState
 		if (failureValue.Length == 0)
 			failureValue = _inventoryActionError;
 		BingoAdaptiveText failure = CreateText(panel, failureValue, 0.5f, 0.5f, 0.78f,
-			BingoTextRole.Compact, Color.OrangeRed);
+			BingoTextRole.Compact, BingoUITheme.InputInvalidBorder);
 		UIHorizontalStack footer = new(24f);
 		BingoButton close = CreateButton(panel, Text("UI.Close"), BingoUISystem.Toggle);
 		BingoButton start = CreateButton(panel, Text("UI.StartGame"), StartGame, emphasized: true);

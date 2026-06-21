@@ -28,14 +28,14 @@ internal sealed partial class BingoMenuState
 				if (_failure.CellIndex == capturedIndex)
 					_failure = default;
 			});
-			input.IsInvalid = _failure.CellIndex == index;
+			input.IsInvalid = _failure.Error != BingoValidationError.None && _failure.CellIndex == index;
 			grid.AddCell(input);
 		}
 
 		UIHorizontalStack footer = new(12f);
 		BingoButton back = CreateButton(panel, Text("UI.Back"), CloseEditor);
 		BingoAdaptiveText failure = CreateText(panel, FailureText(), 0.5f, 0.5f, 0.72f,
-			BingoTextRole.Compact, Color.OrangeRed);
+			BingoTextRole.Compact, BingoUITheme.InputInvalidBorder);
 		BingoButton clear = CreateButton(panel, Text("UI.Clear"), ClearDraftItems,
 			backgroundColor: BingoUITheme.DangerBackground);
 		footer.AddWeighted(back, 1f, 90f);
@@ -70,4 +70,3 @@ internal sealed partial class BingoMenuState
 		Rebuild();
 	}
 }
-
