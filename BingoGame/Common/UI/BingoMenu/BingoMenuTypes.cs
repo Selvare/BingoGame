@@ -20,10 +20,8 @@ internal enum BingoWindowPage
 	Waiting,
 	Editor,
 	Game,
-	Result,
 	WhitelistList,
 	WhitelistEditor,
 	InitialItemList,
 	InitialItemEditor
 }
-

@@ -49,13 +49,22 @@ UI: {
 	RandomHint: 随机
 	BoardTitle: BINGO · {0}
 	TeamScore: "{0}: {1}"
+	PersonalScore: 得分：{0}
+	PersonalResultScore: 本局得分：{0} 格
+	PersonalContribution: "{0}：获得 {1} 个物品 {2}"
 	NoClaims: 尚未占领格子
 	InProgress: 游戏进行中
+	GameOver: 游戏结束
+	ChallengeSuccess: 挑战成功
+	ChallengeIncomplete: 挑战未完成
 	Draw: 游戏结束：平局
 	TeamWon: 游戏结束：{0}获胜
 	TeamRanking: "{0}. {1}，{2} 格"
 	ItemUnclaimed: 尚未有队伍获得此物品
-	ItemClaimed: "{0}已经获得过此物品"
+	ItemClaimed: "[{0}]: {1} {2} 已经获得过此物品"
+	SingleItemUnclaimed: 你尚未获得此物品
+	SingleItemClaimed: "[{0}]: 你已获得此物品"
+	UnknownPlayer: 未知玩家
 
 	TeamNames: {
 		Red: 红队
@@ -115,8 +124,11 @@ UI: {
 
 Chat: {
 	ItemClaim: "[{0}]: {1} {2} 获得了 {3}{4}({5})"
+	SingleItemClaim: "[{0}]: {1} 获得了 {2}{3}({4})"
 	ContributionHeader: ---------贡献排行榜---------
 	ContributionEntry: "{0} {1} {2}, {3}, {4}"
+	SingleContributionHeader: ---------本局统计---------
+	SingleContributionEntry: "{0}，获得 {1} 个物品：{2}"
 }
 
 Commands: {

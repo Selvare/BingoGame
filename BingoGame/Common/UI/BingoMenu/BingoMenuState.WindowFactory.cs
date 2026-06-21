@@ -50,7 +50,6 @@ internal sealed partial class BingoMenuState
 			BingoWindowPage.Waiting => new Vector2(config.WaitingWidth, config.WaitingHeight),
 			BingoWindowPage.Editor => new Vector2(config.EditorWidth, config.EditorHeight),
 			BingoWindowPage.Game => new Vector2(config.GameWidth, config.GameHeight),
-			BingoWindowPage.Result => new Vector2(config.ResultWidth, config.ResultHeight),
 			BingoWindowPage.WhitelistList => new Vector2(config.WhitelistListWidth, config.WhitelistListHeight),
 			BingoWindowPage.WhitelistEditor => new Vector2(config.WhitelistEditorWidth, config.WhitelistEditorHeight),
 			BingoWindowPage.InitialItemList => new Vector2(config.InitialItemListWidth, config.InitialItemListHeight),
@@ -81,10 +80,6 @@ internal sealed partial class BingoMenuState
 			case BingoWindowPage.Game:
 				config.GameWidth = roundedWidth;
 				config.GameHeight = roundedHeight;
-				break;
-			case BingoWindowPage.Result:
-				config.ResultWidth = roundedWidth;
-				config.ResultHeight = roundedHeight;
 				break;
 			case BingoWindowPage.WhitelistList:
 				config.WhitelistListWidth = roundedWidth;
@@ -138,4 +133,3 @@ internal sealed partial class BingoMenuState
 	private static string Text(string key, params object[] args) =>
 		Language.GetTextValue($"Mods.BingoGame.{key}", args);
 }
-

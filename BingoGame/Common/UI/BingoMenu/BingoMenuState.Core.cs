@@ -140,9 +140,7 @@ internal sealed partial class BingoMenuState : UIState
 		_shownWidth = Main.screenWidth;
 		_shownHeight = Main.screenHeight;
 
-		if (BingoWorldSystem.Phase == BingoGamePhase.Finished)
-			BuildResultWindow();
-		else if (BingoWorldSystem.Phase == BingoGamePhase.InProgress)
+		if (BingoWorldSystem.Phase == BingoGamePhase.InProgress)
 			BuildGameBoard();
 		else if (!BingoWorldSystem.IsLocalPlayerHost)
 			BuildWaitingMessage();

@@ -12,15 +12,20 @@ internal sealed class BingoBoardCell : UIPanel
 {
 	private readonly int _itemType;
 	private readonly byte _owner;
+	private readonly BingoClaimRecord? _claim;
 	private readonly Func<Color> _borderColor;
+	private readonly bool _singlePlayer;
 
 	private Item _hoverItem = new();
 
-	public BingoBoardCell(int itemType, byte owner, Func<Color> borderColor)
+	public BingoBoardCell(int itemType, byte owner, BingoClaimRecord? claim, Func<Color> borderColor,
+		bool singlePlayer)
 	{
 		_itemType = itemType;
 		_owner = owner;
+		_claim = claim;
 		_borderColor = borderColor;
+		_singlePlayer = singlePlayer;
 
 		if (BingoWorldSystem.IsUsableItemId(_itemType))
 		{
@@ -50,10 +55,31 @@ internal sealed class BingoBoardCell : UIPanel
 		if (bounds.Contains(Main.MouseScreen.ToPoint()))
 		{
 			string title = $"{Lang.GetItemNameValue(_itemType)} ({_itemType})";
-			string body = _owner == 0
-				? Language.GetTextValue("Mods.BingoGame.UI.ItemUnclaimed")
-				: Language.GetTextValue("Mods.BingoGame.UI.ItemClaimed", BingoTeamDisplay.GetName(_owner));
-			BingoHoverTooltipGlobalItem.Show(_hoverItem, title, body);
+			string body = BuildTooltipBody();
+			Color? bodyColor = _owner is >= 1 and <= 5
+				? BingoBoardElement.GetTeamColor(_owner)
+				: null;
+			BingoHoverTooltipGlobalItem.Show(_hoverItem, title, body, bodyColor);
 		}
+	}
+
+	private string BuildTooltipBody()
+	{
+		if (_owner == 0)
+			return Language.GetTextValue(_singlePlayer
+				? "Mods.BingoGame.UI.SingleItemUnclaimed"
+				: "Mods.BingoGame.UI.ItemUnclaimed");
+
+		string elapsed = _claim.HasValue
+			? BingoWorldSystem.FormatElapsed(_claim.Value.ElapsedTicks)
+			: "--:--";
+		if (_singlePlayer)
+			return Language.GetTextValue("Mods.BingoGame.UI.SingleItemClaimed", elapsed);
+
+		string playerName = _claim.HasValue
+			? _claim.Value.PlayerName
+			: Language.GetTextValue("Mods.BingoGame.UI.UnknownPlayer");
+		return Language.GetTextValue("Mods.BingoGame.UI.ItemClaimed", elapsed,
+			BingoTeamDisplay.GetName(_owner), playerName);
 	}
 }

@@ -12,6 +12,8 @@ public sealed class BingoUISystem : ModSystem
 {
 	private UserInterface _interface;
 	private BingoMenuState _menu;
+	private UserInterface _resultInterface;
+	private BingoResultState _result;
 	private GameTime _lastUpdateTime;
 	private BingoGamePhase _lastObservedPhase;
 
@@ -24,13 +26,24 @@ public sealed class BingoUISystem : ModSystem
 		_interface = new UserInterface();
 		_menu = new BingoMenuState();
 		_menu.Activate();
+		_resultInterface = new UserInterface();
+		_result = new BingoResultState();
+		_result.Activate();
 		_menu.EnsureConfigDefaults();
 		_lastObservedPhase = BingoWorldSystem.Phase;
 	}
 
-	public override void OnWorldLoad() => Hide(true);
+	public override void OnWorldLoad()
+	{
+		HideAll(true);
+		_lastObservedPhase = BingoWorldSystem.Phase;
+	}
 
-	public override void OnWorldUnload() => Hide(true);
+	public override void OnWorldUnload()
+	{
+		HideAll(true);
+		_lastObservedPhase = BingoGamePhase.NotStarted;
+	}
 
 	public override void Unload()
 	{
@@ -38,6 +51,8 @@ public sealed class BingoUISystem : ModSystem
 		BingoTextInput.ClearFocus(false);
 		_interface = null;
 		_menu = null;
+		_resultInterface = null;
+		_result = null;
 		_lastUpdateTime = null;
 	}
 
@@ -47,21 +62,25 @@ public sealed class BingoUISystem : ModSystem
 		BingoUITheme.RefreshOpacity();
 		if (Main.gameMenu)
 		{
-			Hide(true);
+			HideAll(true);
 			return;
 		}
 		if (_lastObservedPhase != BingoWorldSystem.Phase)
 		{
+			BingoGamePhase previousPhase = _lastObservedPhase;
 			_lastObservedPhase = BingoWorldSystem.Phase;
-			if (_lastObservedPhase == BingoGamePhase.Finished && _interface?.CurrentState == null)
-				Show();
+			if (previousPhase == BingoGamePhase.InProgress && _lastObservedPhase == BingoGamePhase.Finished)
+				ShowResult();
 		}
 
 		if (_interface?.CurrentState != null)
 		{
 			_menu.RefreshForWorldChanges();
-			_interface.Update(gameTime);
+			if (_resultInterface?.CurrentState == null)
+				_interface.Update(gameTime);
 		}
+		if (_resultInterface?.CurrentState != null)
+			_resultInterface.Update(gameTime);
 	}
 
 	public override void ModifyInterfaceLayers(List<GameInterfaceLayer> layers)
@@ -76,6 +95,8 @@ public sealed class BingoUISystem : ModSystem
 			{
 				if (_lastUpdateTime != null && _interface?.CurrentState != null)
 					_interface.Draw(Main.spriteBatch, _lastUpdateTime);
+				if (_lastUpdateTime != null && _resultInterface?.CurrentState != null)
+					_resultInterface.Draw(Main.spriteBatch, _lastUpdateTime);
 				return true;
 			}, InterfaceScaleType.UI));
 	}
@@ -109,6 +130,20 @@ public sealed class BingoUISystem : ModSystem
 		_interface.SetState(_menu);
 	}
 
+	private void ShowResult()
+	{
+		if (_resultInterface == null || _result == null || Main.gameMenu || !BingoWorldSystem.HasBoard)
+			return;
+		_result.Open(BingoResultSnapshot.Capture(), HideResult);
+		_resultInterface.SetState(_result);
+	}
+
+	private void HideResult()
+	{
+		_resultInterface?.SetState(null);
+		_result?.Clear();
+	}
+
 	private void Hide(bool forced)
 	{
 		if (_interface?.CurrentState != null && _menu != null && !_menu.TrySavePersistentState(!forced))
@@ -117,5 +152,10 @@ public sealed class BingoUISystem : ModSystem
 		BingoTextInput.ClearFocus(false);
 		_interface?.SetState(null);
 	}
-}
 
+	private void HideAll(bool forced)
+	{
+		Hide(forced);
+		HideResult();
+	}
+}

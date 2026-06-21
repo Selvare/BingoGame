@@ -2,6 +2,7 @@ using System;
 using BingoGame.Common.Configs;
 using BingoGame.Common.UI;
 using Terraria;
+using Terraria.ID;
 using Terraria.UI;
 
 namespace BingoGame.Common.Systems;
@@ -30,7 +31,9 @@ internal sealed partial class BingoMenuState
 		header.AddFixed(_timerText, 70f);
 		header.AddWeighted(titleText, 1f, 120f);
 
-		BingoBoardElement board = new(size, () => panel.BorderColor);
+		bool singlePlayer = Main.netMode == NetmodeID.SinglePlayer;
+		BingoBoardElement board = new(size, BingoWorldSystem.ItemTypes, BingoWorldSystem.Owners,
+			BingoWorldSystem.Claims, () => panel.BorderColor, singlePlayer);
 
 		UIHorizontalStack scoreRow = new(6f);
 		int visibleTeams = 0;
@@ -39,8 +42,11 @@ internal sealed partial class BingoMenuState
 			int score = BingoWorldSystem.GetTeamScore(team);
 			if (score <= 0)
 				continue;
+			string scoreText = singlePlayer
+				? Text("UI.PersonalScore", score)
+				: Text("UI.TeamScore", BingoTeamDisplay.GetName(team), score);
 			BingoAdaptiveText teamScore = CreateText(panel,
-				Text("UI.TeamScore", BingoTeamDisplay.GetName(team), score), 0.5f, 0.5f, 0.72f,
+				scoreText, 0.5f, 0.5f, 0.72f,
 				BingoTextRole.Compact, BingoBoardElement.GetTeamColor(team));
 			scoreRow.AddWeighted(teamScore);
 			visibleTeams++;
@@ -122,4 +128,3 @@ internal sealed partial class BingoMenuState
 		Rebuild();
 	}
 }
-

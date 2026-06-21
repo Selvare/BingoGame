@@ -64,6 +64,7 @@ public sealed record BingoContributionStanding(int Rank, byte Team, string Playe
 
 public sealed class BingoWorldSystem : ModSystem
 {
+	public const byte SinglePlayerTeam = 2;
 	private const int SaveVersion = 3;
 	private const long TicksPerSecond = 60;
 	private static readonly int[] EmptyInts = Array.Empty<int>();
@@ -380,7 +381,7 @@ public sealed class BingoWorldSystem : ModSystem
 		failure = default;
 		if (!IsPlayerHost(requester))
 			return Fail(BingoValidationError.NotHost, -1, out failure);
-		if (Phase != BingoGamePhase.NotStarted)
+		if (Phase is not (BingoGamePhase.NotStarted or BingoGamePhase.Finished))
 			return Fail(BingoValidationError.InvalidPhase, -1, out failure);
 		if (size is < 2 or > 10)
 			return Fail(BingoValidationError.InvalidSize, -1, out failure);
@@ -498,10 +499,10 @@ public sealed class BingoWorldSystem : ModSystem
 
 	public static void TryClaimInventory(Player player)
 	{
-		if (Main.netMode == NetmodeID.MultiplayerClient || Phase != BingoGamePhase.InProgress || player.team is < 1 or > 5)
+		if (Main.netMode == NetmodeID.MultiplayerClient || Phase != BingoGamePhase.InProgress
+			|| !TryGetEffectiveTeam(player, out byte team))
 			return;
 
-		byte team = (byte)player.team;
 		bool changed = false;
 		for (int slot = 0; slot < player.inventory.Length; slot++)
 		{
@@ -701,6 +702,24 @@ public sealed class BingoWorldSystem : ModSystem
 
 	internal static bool IsPlayerHost(int requester) => Main.netMode == NetmodeID.SinglePlayer
 		|| Main.netMode == NetmodeID.Server && requester == HostPlayerId && IsEligibleLocalHost(requester);
+
+	private static bool TryGetEffectiveTeam(Player player, out byte team)
+	{
+		if (Main.netMode == NetmodeID.SinglePlayer)
+		{
+			team = SinglePlayerTeam;
+			return true;
+		}
+
+		if (player.team is >= 1 and <= 5)
+		{
+			team = (byte)player.team;
+			return true;
+		}
+
+		team = 0;
+		return false;
+	}
 
 	internal static bool IsUsableItemId(int id)
 	{
@@ -913,23 +932,33 @@ public sealed class BingoWorldSystem : ModSystem
 
 	private static void BroadcastClaim(BingoClaimRecord claim)
 	{
-		NetworkText text = NetworkText.FromKey("Mods.BingoGame.Chat.ItemClaim",
-			FormatElapsed(claim.ElapsedTicks), TeamNetworkText(claim.Team), claim.PlayerName,
-			$"[i:{claim.ItemType}]", Lang.GetItemName(claim.ItemType).ToNetworkText(), claim.ItemType);
+		NetworkText text = Main.netMode == NetmodeID.SinglePlayer
+			? NetworkText.FromKey("Mods.BingoGame.Chat.SingleItemClaim",
+				FormatElapsed(claim.ElapsedTicks), claim.PlayerName, $"[i:{claim.ItemType}]",
+				Lang.GetItemName(claim.ItemType).ToNetworkText(), claim.ItemType)
+			: NetworkText.FromKey("Mods.BingoGame.Chat.ItemClaim",
+				FormatElapsed(claim.ElapsedTicks), TeamNetworkText(claim.Team), claim.PlayerName,
+				$"[i:{claim.ItemType}]", Lang.GetItemName(claim.ItemType).ToNetworkText(), claim.ItemType);
 		BroadcastChat(text, BingoTeamDisplay.GetColor(claim.Team));
 	}
 
 	private static void BroadcastContributionRanking()
 	{
-		BroadcastChat(NetworkText.FromKey("Mods.BingoGame.Chat.ContributionHeader"), Color.White);
+		bool singlePlayer = Main.netMode == NetmodeID.SinglePlayer;
+		BroadcastChat(NetworkText.FromKey(singlePlayer
+			? "Mods.BingoGame.Chat.SingleContributionHeader"
+			: "Mods.BingoGame.Chat.ContributionHeader"), Color.White);
 		foreach (BingoContributionStanding standing in GetContributionStandings())
 		{
 			List<string> tags = new(standing.ItemTypes.Count);
 			foreach (int itemType in standing.ItemTypes)
 				tags.Add($"[i:{itemType}]");
 			string itemTags = string.Join(" ", tags);
-			NetworkText text = NetworkText.FromKey("Mods.BingoGame.Chat.ContributionEntry", standing.Rank,
-				TeamNetworkText(standing.Team), standing.PlayerName, standing.ItemTypes.Count, itemTags);
+			NetworkText text = singlePlayer
+				? NetworkText.FromKey("Mods.BingoGame.Chat.SingleContributionEntry", standing.PlayerName,
+					standing.ItemTypes.Count, itemTags)
+				: NetworkText.FromKey("Mods.BingoGame.Chat.ContributionEntry", standing.Rank,
+					TeamNetworkText(standing.Team), standing.PlayerName, standing.ItemTypes.Count, itemTags);
 			BroadcastChat(text, BingoTeamDisplay.GetColor(standing.Team));
 		}
 	}

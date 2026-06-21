@@ -2,6 +2,8 @@ using System.Linq;
 using BingoGame.Common.Configs;
 using BingoGame.Common.Systems;
 using Microsoft.Xna.Framework;
+using Terraria;
+using Terraria.ID;
 using Terraria.Localization;
 using Terraria.ModLoader;
 
@@ -26,6 +28,20 @@ public sealed class BingoStatusCommand : ModCommand
 		if (BingoWorldSystem.Phase == BingoGamePhase.NotStarted)
 		{
 			caller.Reply(Language.GetTextValue("Mods.BingoGame.Commands.NotStarted"), Color.LightGray);
+			return;
+		}
+
+		if (Main.netMode == NetmodeID.SinglePlayer)
+		{
+			string singleResult = BingoWorldSystem.Phase == BingoGamePhase.Finished
+				? Language.GetTextValue(BingoWorldSystem.FinishReason == BingoFinishReason.Natural
+					? "Mods.BingoGame.UI.ChallengeSuccess"
+					: "Mods.BingoGame.UI.ChallengeIncomplete")
+				: Language.GetTextValue("Mods.BingoGame.UI.InProgress");
+			string score = Language.GetTextValue("Mods.BingoGame.UI.PersonalScore",
+				BingoWorldSystem.GetTeamScore(BingoWorldSystem.SinglePlayerTeam));
+			caller.Reply(Language.GetTextValue("Mods.BingoGame.Commands.Status", BingoWorldSystem.BoardSize,
+				RuleName(BingoWorldSystem.WinRule), singleResult, score), Color.LightBlue);
 			return;
 		}
 

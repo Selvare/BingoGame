@@ -1,4 +1,4 @@
-【Bingo Game】将物品收集变成一场可在多人模式中游玩的团队竞赛。
+【Bingo Game】将物品收集变成一场可在单人/多人模式中游玩的团队竞赛。
 
 按“B”键（默认键位，可在控制设置中修改）打开或隐藏 BINGO 界面。多人游戏中，请先使用原版队伍按钮加入红、绿、蓝、黄或粉队；房主负责配置并开始游戏。
 
@@ -25,7 +25,7 @@
 
 —— English ——
 
-Bingo Game turns item collection into a configurable team competition for multiplayer.
+Bingo Game turns item collection into a configurable team competition for both single-player and multiplayer.
 
 Press “B” (default key, rebindable in Controls) to show or hide the BINGO interface. In multiplayer, join the Red, Green, Blue, Yellow, or Pink team with Terraria's standard team buttons before playing; the host configures and starts the match.
 

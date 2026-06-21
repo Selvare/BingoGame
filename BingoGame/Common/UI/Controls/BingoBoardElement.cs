@@ -12,12 +12,19 @@ internal sealed class BingoBoardElement : UIElement
 	private readonly int _size;
 	private readonly List<BingoBoardCell> _cells = new();
 
-	public BingoBoardElement(int size, Func<Color> borderColor)
+	public BingoBoardElement(int size, IReadOnlyList<int> itemTypes, IReadOnlyList<byte> owners,
+		IReadOnlyList<BingoClaimRecord> claims, Func<Color> borderColor, bool singlePlayer)
 	{
 		_size = size;
-		for (int index = 0; index < BingoWorldSystem.ItemTypes.Length; index++)
+		Dictionary<int, BingoClaimRecord> claimsByItemType = new(claims.Count);
+		foreach (BingoClaimRecord claim in claims)
+			claimsByItemType.TryAdd(claim.ItemType, claim);
+		int count = Math.Min(itemTypes.Count, owners.Count);
+		for (int index = 0; index < count; index++)
 		{
-			BingoBoardCell cell = new(BingoWorldSystem.ItemTypes[index], BingoWorldSystem.Owners[index], borderColor);
+			claimsByItemType.TryGetValue(itemTypes[index], out BingoClaimRecord claim);
+			BingoBoardCell cell = new(itemTypes[index], owners[index],
+				claim == default ? null : claim, borderColor, singlePlayer);
 			_cells.Add(cell);
 			Append(cell);
 		}
@@ -45,4 +52,3 @@ internal sealed class BingoBoardElement : UIElement
 
 	internal static Color GetTeamColor(int team) => BingoTeamDisplay.GetColor(team);
 }
-

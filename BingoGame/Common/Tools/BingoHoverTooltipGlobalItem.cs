@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Xna.Framework;
 using Terraria;
 using Terraria.ModLoader;
 
@@ -11,14 +12,16 @@ internal sealed class BingoHoverTooltipGlobalItem : GlobalItem
 
 	private string _customTitle;
 	private string _customBody;
+	private Color? _customBodyColor;
 
-	public static void Show(Item item, string title, string body)
+	public static void Show(Item item, string title, string body, Color? bodyColor = null)
 	{
 		Main.LocalPlayer.mouseInterface = true;
 		item.SetNameOverride(title);
 		BingoHoverTooltipGlobalItem global = item.GetGlobalItem<BingoHoverTooltipGlobalItem>();
 		global._customTitle = title;
 		global._customBody = body;
+		global._customBodyColor = bodyColor;
 		Main.HoverItem = item;
 		Main.hoverItemName = title;
 	}
@@ -46,6 +49,10 @@ internal sealed class BingoHoverTooltipGlobalItem : GlobalItem
 		string[] lines = _customBody.Split('\n');
 		for (int i = 0; i < lines.Length; i++)
 			if (!string.IsNullOrWhiteSpace(lines[i]))
-				tooltips.Add(new TooltipLine(Mod, $"BingoTooltip{i}", lines[i]));
+			{
+				TooltipLine line = new(Mod, $"BingoTooltip{i}", lines[i]);
+				line.OverrideColor = _customBodyColor;
+				tooltips.Add(line);
+			}
 	}
 }

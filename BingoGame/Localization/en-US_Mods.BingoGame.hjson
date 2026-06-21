@@ -49,13 +49,22 @@ UI: {
 	RandomHint: Random
 	BoardTitle: BINGO · {0}
 	TeamScore: "{0}: {1}"
+	PersonalScore: Score: {0}
+	PersonalResultScore: Final score: {0} cells
+	PersonalContribution: "{0}: obtained {1} items {2}"
 	NoClaims: No cells claimed
 	InProgress: Game in progress
+	GameOver: Game Over
+	ChallengeSuccess: Challenge complete
+	ChallengeIncomplete: Challenge incomplete
 	Draw: Game over: Draw
 	TeamWon: Game over: {0} wins
 	TeamRanking: "{0}. {1}, {2} cells"
 	ItemUnclaimed: No team has obtained this item yet
-	ItemClaimed: "{0} has already obtained this item"
+	ItemClaimed: "[{0}]: {1} {2} has already obtained this item"
+	SingleItemUnclaimed: You have not obtained this item yet
+	SingleItemClaimed: "[{0}]: You have obtained this item"
+	UnknownPlayer: Unknown player
 
 	TeamNames: {
 		Red: Red Team
@@ -115,8 +124,11 @@ UI: {
 
 Chat: {
 	ItemClaim: "[{0}]: {1} {2} obtained {3}{4}({5})"
+	SingleItemClaim: "[{0}]: {1} obtained {2}{3}({4})"
 	ContributionHeader: -----Contribution ranking-----
 	ContributionEntry: "{0} {1} {2}, {3}, {4}"
+	SingleContributionHeader: -----Game statistics-----
+	SingleContributionEntry: "{0}, obtained {1} items: {2}"
 }
 
 Commands: {
