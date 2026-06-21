@@ -1,5 +1,52 @@
-在单人/多人模式中进行BINGO游戏！
-用“B”键（默认键位）打开设置菜单，进行BINGO游戏的配置，并开始游戏。
+【Bingo Game】将物品收集变成一场可在多人模式中游玩的团队竞赛。
 
-Play BINGO in single-player/multiplayer mode!
-Use the "B" key (default key) to open the settings menu, configure the BINGO game settings, and start the game.
+按“B”键（默认键位，可在控制设置中修改）打开或隐藏 BINGO 界面。多人游戏中，请先使用原版队伍按钮加入红、绿、蓝、黄或粉队；房主负责配置并开始游戏。
+
+玩法
+• 棋盘由 2×2 至 10×10 个物品目标组成。
+• 玩家将目标物品放入物品栏后，对应格子会自动归属玩家当前队伍；物品不会因此被消耗。
+• 每个格子只能被一个队伍率先占领，认领结果会同步给所有玩家并显示在聊天栏中。
+• “连线”规则：率先占领完整一行、一列或一条对角线的队伍获胜。
+• “多数占领”规则：率先取得超过半数格子的队伍获胜；棋盘填满时按占领数结算。
+
+配置功能
+• 自定义棋盘尺寸和每个格子的物品；留空格子会在开局时由服务器随机填充。
+• 创建并启用物品白名单，让随机格子只从指定物品池中抽取。
+• 设置可选时间限制；时间到后自动按当前规则结算。
+• 创建初始物品方案，可由房主一键发放给所有玩家；也可在开局前清空所有玩家物品。
+• 配置草稿、白名单与初始物品方案会自动保存，未结束的对局也会随世界保存并同步。
+
+多人支持
+• 服务端统一判定格子归属、胜负与计时。
+• 仅房主可以开始、手动结算、取消或重置对局，以及执行全员物品操作。
+• 界面实时显示计时、各队分数和最终排名；结算时会在聊天栏公布个人贡献排行。
+
+提示：只有加入原版队伍的玩家才能占领格子。游戏会定期检查玩家物品栏，因此获得目标物品后可能会有极短延迟。
+
+—— English ——
+
+Bingo Game turns item collection into a configurable team competition for multiplayer.
+
+Press “B” (default key, rebindable in Controls) to show or hide the BINGO interface. In multiplayer, join the Red, Green, Blue, Yellow, or Pink team with Terraria's standard team buttons before playing; the host configures and starts the match.
+
+Gameplay
+• Boards range from 2×2 to 10×10 item goals.
+• When a target item enters a player's inventory, its cell is automatically claimed for that player's current team. The item is not consumed.
+• Each cell can only be claimed once. Claims are synchronized to all players and announced in chat.
+• Line rule: the first team to complete a row, column, or diagonal wins.
+• Majority rule: the first team to control more than half the board wins; if the board fills first, the result is decided by cell count.
+
+Configuration
+• Choose the board size and set individual target items. Empty cells are filled randomly by the server when the match starts.
+• Create and enable item whitelists to restrict the random item pool.
+• Set an optional time limit. When time expires, the current board is settled according to the selected rule.
+• Create starting-item presets for the host to distribute to every player, with an option to clear all player inventories before a match.
+• Board drafts, whitelists, and starting-item presets are saved automatically. Active matches are saved with the world and synchronized in multiplayer.
+
+Multiplayer support
+• The server authoritatively handles claims, victory conditions, and timing.
+• Only the host can start, settle, cancel, or reset a match and perform global inventory actions.
+• The interface shows the timer, team scores, and final standings. A player contribution ranking is posted in chat when the match ends.
+• Use /bingo to view the current board size, rule, timer, and team scores.
+
+Note: players must join a standard Terraria team to claim cells. Inventories are checked periodically, so a newly obtained target may take a brief moment to register.

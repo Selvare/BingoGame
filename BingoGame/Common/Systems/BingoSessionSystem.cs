@@ -233,7 +233,9 @@ public sealed class BingoWorldSystem : ModSystem
 		ElapsedTicks = version >= 3 ? Math.Max(0L, tag.GetLong("ElapsedTicks")) : 0L;
 		TimeLimitTicks = version >= 3 ? Math.Max(0L, tag.GetLong("TimeLimitTicks")) : 0L;
 		int savedFinishReason = tag.GetInt("FinishReason");
-		FinishReason = version >= 3 && Enum.IsDefined(typeof(BingoFinishReason), savedFinishReason)
+		FinishReason = version >= 3
+			&& savedFinishReason is >= byte.MinValue and <= byte.MaxValue
+			&& Enum.IsDefined(typeof(BingoFinishReason), (byte)savedFinishReason)
 			? (BingoFinishReason)savedFinishReason
 			: Phase == BingoGamePhase.Finished ? BingoFinishReason.Natural : BingoFinishReason.None;
 		_claims = new List<BingoClaimRecord>(count);
