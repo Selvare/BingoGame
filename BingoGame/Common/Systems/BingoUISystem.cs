@@ -27,7 +27,7 @@ public sealed class BingoUISystem : ModSystem
 		_menu = new BingoMenuState();
 		_menu.Activate();
 		_resultInterface = new UserInterface();
-		_result = new BingoResultState();
+		_result = new BingoResultState(HideResult);
 		_result.Activate();
 		_menu.EnsureConfigDefaults();
 		_lastObservedPhase = BingoWorldSystem.Phase;
@@ -76,8 +76,7 @@ public sealed class BingoUISystem : ModSystem
 		if (_interface?.CurrentState != null)
 		{
 			_menu.RefreshForWorldChanges();
-			if (_resultInterface?.CurrentState == null)
-				_interface.Update(gameTime);
+			_interface.Update(gameTime);
 		}
 		if (_resultInterface?.CurrentState != null)
 			_resultInterface.Update(gameTime);
@@ -134,8 +133,9 @@ public sealed class BingoUISystem : ModSystem
 	{
 		if (_resultInterface == null || _result == null || Main.gameMenu || !BingoWorldSystem.HasBoard)
 			return;
-		_result.Open(BingoResultSnapshot.Capture(), HideResult);
-		_resultInterface.SetState(_result);
+		_result.Add(BingoResultSnapshot.Capture());
+		if (_resultInterface.CurrentState == null)
+			_resultInterface.SetState(_result);
 	}
 
 	private void HideResult()

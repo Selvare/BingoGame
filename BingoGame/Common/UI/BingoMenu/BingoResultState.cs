@@ -43,40 +43,78 @@ internal sealed record BingoResultSnapshot(int BoardSize, IReadOnlyList<int> Ite
 
 internal sealed class BingoResultState : UIState
 {
-	private const float ScreenMargin = 16f;
-	private BingoResultSnapshot _snapshot;
-	private Action _close;
-	private Vector2 _windowCenterOffset;
-	private int _shownWidth;
-	private int _shownHeight;
+	private readonly List<BingoResultWindow> _windows = new();
+	private readonly Action _allClosed;
+	private int _nextCascadeIndex;
 
-	public void Open(BingoResultSnapshot snapshot, Action close)
+	public BingoResultState(Action allClosed)
 	{
-		_snapshot = snapshot;
-		_close = close;
-		Rebuild();
+		_allClosed = allClosed;
+	}
+
+	public void Add(BingoResultSnapshot snapshot)
+	{
+		BingoResultWindow window = null;
+		window = new BingoResultWindow(snapshot, () => Remove(window), _nextCascadeIndex++);
+		_windows.Add(window);
+		Append(window.Panel);
 	}
 
 	public void Clear()
 	{
+		_windows.Clear();
+		_nextCascadeIndex = 0;
 		RemoveAllChildren();
-		_snapshot = null;
-		_close = null;
 	}
 
 	public override void Update(GameTime gameTime)
 	{
-		if (_snapshot != null && (_shownWidth != Main.screenWidth || _shownHeight != Main.screenHeight))
-			Rebuild();
+		foreach (BingoResultWindow window in _windows)
+			window.EnsureLayout(this);
 		base.Update(gameTime);
+	}
+
+	private void Remove(BingoResultWindow window)
+	{
+		if (!_windows.Remove(window))
+			return;
+		window.Panel.Remove();
+		if (_windows.Count == 0)
+			_allClosed();
+	}
+}
+
+internal sealed class BingoResultWindow
+{
+	private const float ScreenMargin = 16f;
+	private readonly BingoResultSnapshot _snapshot;
+	private readonly Action _close;
+	private Vector2 _windowCenterOffset;
+	private int _shownWidth;
+	private int _shownHeight;
+
+	public BingoResponsivePanel Panel { get; private set; }
+
+	public BingoResultWindow(BingoResultSnapshot snapshot, Action close, int cascadeIndex)
+	{
+		_snapshot = snapshot;
+		_close = close;
+		float cascadeOffset = cascadeIndex % 10 * 24f;
+		_windowCenterOffset = new Vector2(cascadeOffset, cascadeOffset);
+		Rebuild();
+	}
+
+	public void EnsureLayout(UIState owner)
+	{
+		if (_shownWidth == Main.screenWidth && _shownHeight == Main.screenHeight)
+			return;
+		Panel.Remove();
+		Rebuild();
+		owner.Append(Panel);
 	}
 
 	private void Rebuild()
 	{
-		RemoveAllChildren();
-		if (_snapshot == null)
-			return;
-
 		_shownWidth = Main.screenWidth;
 		_shownHeight = Main.screenHeight;
 		int size = _snapshot.BoardSize;
@@ -85,33 +123,33 @@ internal sealed class BingoResultState : UIState
 		float defaultCellSize = Math.Clamp(available / size, 36f, 64f);
 		float minimumWidth = Math.Max(360f, size * 36f + 40f);
 		float minimumHeight = size * 36f + statisticsHeight + 80f;
-		BingoResponsivePanel panel = CreateWindow(minimumWidth, minimumHeight,
+		Panel = CreateWindow(minimumWidth, minimumHeight,
 			defaultCellSize * size + 40f, defaultCellSize * size + statisticsHeight + 80f);
 
 		UIVerticalStack root = CreateRootStack(6f, 8f);
 		UIHorizontalStack header = new(8f);
-		BingoAdaptiveText timer = CreateText(panel, BingoWorldSystem.FormatElapsed(_snapshot.ElapsedTicks),
+		BingoAdaptiveText timer = CreateText(Panel, BingoWorldSystem.FormatElapsed(_snapshot.ElapsedTicks),
 			0.5f, 0.5f, 0.92f, BingoTextRole.Compact);
-		BingoAdaptiveText title = CreateText(panel, Text("UI.GameOver"), 0.5f, 0.5f, 1.1f,
+		BingoAdaptiveText title = CreateText(Panel, Text("UI.GameOver"), 0.5f, 0.5f, 1.1f,
 			BingoTextRole.Title);
-		BingoButton close = CreateButton(panel, Text("UI.Close"), _close, textRole: BingoTextRole.Compact);
-		panel.DragExclusion = close;
+		BingoButton close = CreateButton(Panel, Text("UI.Close"), _close, textRole: BingoTextRole.Compact);
+		Panel.DragExclusion = close;
 		header.AddFixed(timer, 70f);
 		header.AddWeighted(title, 1f, 120f);
 		header.AddFixed(close, 70f);
 
 		BingoBoardElement board = new(size, _snapshot.ItemTypes, _snapshot.Owners,
-			_snapshot.Claims, () => panel.BorderColor, _snapshot.SinglePlayer);
-		BingoAdaptiveText result = CreateText(panel, ResultText(), 0.5f, 0.5f, 0.82f,
+			_snapshot.Claims, () => Panel.BorderColor, _snapshot.SinglePlayer);
+		BingoAdaptiveText result = CreateText(Panel, ResultText(), 0.5f, 0.5f, 0.82f,
 			BingoTextRole.Compact, ResultColor());
-		BingoScrollList standings = BuildStandings(panel);
+		BingoScrollList standings = BuildStandings(Panel);
 
 		root.AddFixed(header, 32f);
 		root.AddWeighted(board, 1f, size * 24f);
 		root.AddFixed(result, 24f);
 		root.AddWeighted(standings, 0.35f, statisticsHeight);
-		panel.Append(root);
-		panel.Recalculate();
+		Panel.Append(root);
+		Panel.Recalculate();
 	}
 
 	private BingoScrollList BuildStandings(BingoResponsivePanel panel)
@@ -183,7 +221,6 @@ internal sealed class BingoResultState : UIState
 			SaveSize);
 		BingoUITheme.Apply(panel);
 		panel.OverflowHidden = true;
-		Append(panel);
 		return panel;
 	}
 
