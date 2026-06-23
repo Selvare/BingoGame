@@ -20,7 +20,7 @@ internal static class BingoUITheme
 	public static void RefreshOpacity()
 	{
 		BingoClientConfig config = ModContent.GetInstance<BingoClientConfig>();
-		float value = BingoWorldSystem.Phase == BingoGamePhase.InProgress
+		float value = BingoWorldSystem.Phase is BingoGamePhase.Preparing or BingoGamePhase.InProgress
 			? config.InProgressUIOpacity
 			: config.InactiveUIOpacity;
 		_backgroundAlpha = (byte)MathF.Round(255f * Math.Clamp(value, 0f, 1f));

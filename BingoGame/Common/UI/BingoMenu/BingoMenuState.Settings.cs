@@ -164,7 +164,7 @@ internal sealed partial class BingoMenuState
 
 	private void BuildAdvancedSettings()
 	{
-		BingoResponsivePanel panel = CreateWindow(BingoWindowPage.AdvancedSettings, 560f, 560f, 620f, 600f);
+		BingoResponsivePanel panel = CreateWindow(BingoWindowPage.AdvancedSettings, 560f, 650f, 620f, 690f);
 		UIVerticalStack root = CreateRootStack(10f, 8f);
 		BingoGameConfig config = GetGameConfig();
 		BingoAdaptiveText title = CreateText(panel, Text("UI.AdvancedOptions"), 0.5f, 0.5f, 1.2f,
@@ -190,6 +190,10 @@ internal sealed partial class BingoMenuState
 				ToggleNoRetreat), 58f);
 		UIHorizontalStack fogOfWarRow = CreateToggleRow(panel, Text("UI.FogOfWar"), config.FogOfWarEnabled,
 			ToggleFogOfWar, Text("UI.AdvancedTooltips.FogOfWar"));
+		UIVerticalStack preparationGroup = CreateOptionGroup(panel, Text("UI.Preparation"),
+			Text("UI.AdvancedTooltips.Preparation"), config.PreparationEnabled, TogglePreparation);
+		if (config.PreparationEnabled)
+			preparationGroup.AddFixed(CreatePreparationSubOption(panel, config), 74f);
 
 		UIHorizontalStack footer = new(12f);
 		BingoButton back = CreateButton(panel, Text("UI.Back"), CloseAdvancedSettings);
@@ -200,6 +204,7 @@ internal sealed partial class BingoMenuState
 		root.AddFixed(randomStartGroup, config.RandomStartEnabled ? 116f : 52f);
 		root.AddFixed(forcePvpGroup, config.ForcePvpEnabled ? 116f : 52f);
 		root.AddFixed(fogOfWarRow, 46f);
+		root.AddFixed(preparationGroup, config.PreparationEnabled ? 132f : 52f);
 		root.AddWeighted(new UIElement(), 1f);
 		root.AddFixed(footer, 46f);
 		panel.Append(root);
@@ -253,6 +258,34 @@ internal sealed partial class BingoMenuState
 		return subPanel;
 	}
 
+	private UIPanel CreatePreparationSubOption(BingoResponsivePanel panel, BingoGameConfig config)
+	{
+		UIPanel subPanel = CreateSubOptionPanel();
+		UIVerticalStack stack = new(6f);
+		stack.Width.Set(0f, 1f);
+		stack.Height.Set(0f, 1f);
+		UIHorizontalStack controls = new(8f);
+		BingoTextInput input = null;
+		BingoFloatSlider slider = new(config.PreparationSeconds, value =>
+		{
+			int seconds = Math.Clamp((int)MathF.Round(value), 5, 60);
+			SetPreparationSeconds(seconds);
+			input?.SetText(seconds.ToString(CultureInfo.InvariantCulture));
+		}, 5f, 60f);
+		input = CreatePreparationSecondsInput(panel, config.PreparationSeconds, value =>
+		{
+			SetPreparationSeconds(value);
+			slider.SetValue(value);
+		});
+		controls.AddWeighted(slider, 7f, 180f);
+		controls.AddWeighted(input, 3f, 70f);
+		stack.AddFixed(CreateLabelWithHelp(panel, Text("UI.PreparationSeconds"),
+			Text("UI.AdvancedTooltips.PreparationSeconds")), 24f);
+		stack.AddFixed(controls, 34f);
+		subPanel.Append(stack);
+		return subPanel;
+	}
+
 	private UIPanel CreateSubToggle(BingoResponsivePanel panel, string label, string tooltip, bool enabled,
 		Action toggle)
 	{
@@ -299,6 +332,18 @@ internal sealed partial class BingoMenuState
 				if (float.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
 					changed(Math.Clamp(parsed, 0f, 1f));
 			}, null, 5, character => char.IsDigit(character) || character == '.');
+	}
+
+	private static BingoTextInput CreatePreparationSecondsInput(BingoResponsivePanel panel, int value,
+		Action<int> changed)
+	{
+		string text = Math.Clamp(value, 5, 60).ToString(CultureInfo.InvariantCulture);
+		return new BingoTextInput(Text("UI.Seconds"), text, () => panel.LayoutScale,
+			input =>
+			{
+				if (int.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+					changed(Math.Clamp(parsed, 5, 60));
+			}, null, 2, char.IsDigit);
 	}
 
 	private static string FormatChance(float value) =>
@@ -352,13 +397,17 @@ internal sealed partial class BingoMenuState
 	private sealed class BingoFloatSlider : UIPanel
 	{
 		private readonly Action<float> _changed;
+		private readonly float _min;
+		private readonly float _max;
 		private bool _dragging;
 		private float _value;
 
-		public BingoFloatSlider(float value, Action<float> changed)
+		public BingoFloatSlider(float value, Action<float> changed, float min = 0f, float max = 1f)
 		{
 			_changed = changed;
-			_value = Math.Clamp(value, 0f, 1f);
+			_min = min;
+			_max = Math.Max(min, max);
+			_value = Math.Clamp(value, _min, _max);
 			SetPadding(0f);
 			OverflowHidden = true;
 			OnLeftMouseDown += (_, _) => BeginDrag();
@@ -367,7 +416,7 @@ internal sealed partial class BingoMenuState
 
 		public void SetValue(float value)
 		{
-			_value = Math.Clamp(value, 0f, 1f);
+			_value = Math.Clamp(value, _min, _max);
 		}
 
 		public override void Update(GameTime gameTime)
@@ -394,9 +443,10 @@ internal sealed partial class BingoMenuState
 			Texture2D pixel = TextureAssets.MagicPixel.Value;
 			Rectangle track = new(bounds.X + 8, bounds.Center.Y - 2, Math.Max(1, bounds.Width - 16), 4);
 			spriteBatch.Draw(pixel, track, new Color(30, 35, 55, 220));
-			Rectangle fill = new(track.X, track.Y, (int)MathF.Round(track.Width * _value), track.Height);
+			float ratio = (_value - _min) / Math.Max(0.001f, _max - _min);
+			Rectangle fill = new(track.X, track.Y, (int)MathF.Round(track.Width * ratio), track.Height);
 			spriteBatch.Draw(pixel, fill, new Color(130, 210, 255, 240));
-			int knobX = track.X + (int)MathF.Round(track.Width * _value);
+			int knobX = track.X + (int)MathF.Round(track.Width * ratio);
 			Rectangle knob = new(knobX - 4, bounds.Center.Y - 9, 8, 18);
 			spriteBatch.Draw(pixel, knob, Color.White);
 		}
@@ -412,7 +462,8 @@ internal sealed partial class BingoMenuState
 		private void SetFromMouse()
 		{
 			Rectangle bounds = GetDimensions().ToRectangle();
-			float next = Math.Clamp((Main.mouseX - (bounds.X + 8f)) / Math.Max(1f, bounds.Width - 16f), 0f, 1f);
+			float ratio = Math.Clamp((Main.mouseX - (bounds.X + 8f)) / Math.Max(1f, bounds.Width - 16f), 0f, 1f);
+			float next = _min + ratio * (_max - _min);
 			if (Math.Abs(next - _value) < 0.001f)
 				return;
 			_value = next;
@@ -470,6 +521,9 @@ internal sealed partial class BingoMenuState
 
 	private void ToggleFogOfWar() => ToggleAdvancedFlag(config => config.FogOfWarEnabled = !config.FogOfWarEnabled);
 
+	private void TogglePreparation()
+		=> ToggleAdvancedFlag(config => config.PreparationEnabled = !config.PreparationEnabled);
+
 	private void ToggleLineProgressTiebreak()
 		=> ToggleAdvancedFlag(config => config.LineProgressTiebreakEnabled = !config.LineProgressTiebreakEnabled);
 
@@ -488,6 +542,13 @@ internal sealed partial class BingoMenuState
 	private void SetKillStealChance(float value)
 	{
 		GetGameConfig().KillStealChance = Math.Clamp(value, 0f, 1f);
+	}
+
+	private void SetPreparationSeconds(int value)
+	{
+		GetGameConfig().PreparationSeconds = Math.Clamp(value, 5, 60);
+		if (_failure.Error == BingoValidationError.InvalidAdvancedOptions)
+			_failure = default;
 	}
 
 	private void ToggleWhitelist()
@@ -561,6 +622,11 @@ internal sealed partial class BingoMenuState
 			SetValidationFailure(new BingoValidationFailure(BingoValidationError.InvalidTimeLimit, -1));
 			return;
 		}
+		if (config.PreparationEnabled && config.PreparationSeconds is (< 5 or > 60))
+		{
+			SetValidationFailure(new BingoValidationFailure(BingoValidationError.InvalidAdvancedOptions, -1));
+			return;
+		}
 		if (!TryBuildWhitelistPool(config, out int[] whitelistTypes, out BingoValidationFailure whitelistFailure))
 		{
 			SetValidationFailure(whitelistFailure);
@@ -576,6 +642,6 @@ internal sealed partial class BingoMenuState
 			config.TimeLimitSeconds, config.LineProgressTiebreakEnabled, config.LineAutoDegradeEnabled,
 			config.KillStealEnabled, config.KillStealChance, config.RandomStartEnabled,
 			config.RandomStartTeamTogether, config.ForcePvpEnabled, config.NoRetreatEnabled,
-			config.FogOfWarEnabled);
+			config.FogOfWarEnabled, config.PreparationEnabled, config.PreparationSeconds);
 	}
 }

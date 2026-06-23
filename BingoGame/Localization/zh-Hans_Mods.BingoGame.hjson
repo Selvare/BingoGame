@@ -16,6 +16,8 @@ UI: {
 	ForcePvp: PVP 模式
 	NoRetreat: 死战不退
 	FogOfWar: 战争迷雾
+	Preparation: 准备阶段
+	PreparationSeconds: 准备时间
 	Minutes: 分钟
 	Seconds: 秒
 	RuleLine: 连线
@@ -66,6 +68,9 @@ UI: {
 	PersonalContribution: "{0}：获得 {1} 个物品 {2}"
 	NoClaims: 尚未占领格子
 	InProgress: 游戏进行中
+	Ready: 准备
+	ReadyDone: 已准备
+	PreparationReadyCount: 当前准备人数：{0}/{1}
 	GameOver: 游戏结束
 	ChallengeSuccess: 挑战成功
 	ChallengeIncomplete: 挑战未完成
@@ -142,6 +147,8 @@ UI: {
 		ForcePvp: 对局进行中，所有玩家会被强制设为 PVP 。
 		NoRetreat: 启用 PVP 模式时，玩家受到其他队伍玩家伤害后会在短时间内无法传送。
 		FogOfWar: 地图将隐藏非相同队伍的玩家图标和 BOSS 图标。
+		Preparation: 点击开始游戏后先进入准备阶段，全员准备或倒计时结束后正式开始。
+		PreparationSeconds: 准备阶段倒计时，范围为 5 到 60 秒。
 		LineProgressTiebreak: 结算平局时，比较各队在行、列、对角线中的最大连线进度。
 		LineAutoDegrade: 结算平局时，退化为比较各队总得分。（该规则生效的优先级最低）
 	}
@@ -371,6 +378,16 @@ Configs: {
 		FogOfWarEnabled: {
 			Label: 启用战争迷雾
 			Tooltip: 启用后，地图不显示玩家头像和 BOSS 图标。
+		}
+
+		PreparationEnabled: {
+			Label: 启用准备阶段
+			Tooltip: 启用后，开始游戏会先进入准备阶段。
+		}
+
+		PreparationSeconds: {
+			Label: 准备时间
+			Tooltip: 必须为 5 到 60 秒。
 		}
 
 		InitialItemLists: {

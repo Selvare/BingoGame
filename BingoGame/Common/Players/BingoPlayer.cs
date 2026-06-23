@@ -1,4 +1,5 @@
 using BingoGame.Common.Systems;
+using Microsoft.Xna.Framework;
 using Terraria;
 using Terraria.DataStructures;
 using Terraria.GameInput;
@@ -15,12 +16,35 @@ public sealed class BingoPlayer : ModPlayer
 
 	public override void PostUpdate()
 	{
+		FreezeDuringPreparation();
 		ForcePvpIfNeeded();
 		if (Main.netMode == NetmodeID.MultiplayerClient || ++_inventoryCheckTimer < 15)
 			return;
 
 		_inventoryCheckTimer = 0;
 		BingoWorldSystem.TryClaimInventory(Player);
+	}
+
+	public override void SetControls()
+	{
+		if (BingoWorldSystem.Phase != BingoGamePhase.Preparing)
+			return;
+
+		Player.controlLeft = false;
+		Player.controlRight = false;
+		Player.controlUp = false;
+		Player.controlDown = false;
+		Player.controlJump = false;
+		Player.controlUseItem = false;
+		Player.controlUseTile = false;
+		Player.controlThrow = false;
+		Player.controlHook = false;
+		Player.controlMount = false;
+	}
+
+	public override bool CanUseItem(Item item)
+	{
+		return BingoWorldSystem.Phase != BingoGamePhase.Preparing;
 	}
 
 	public override void OnHurt(Player.HurtInfo info)
@@ -50,6 +74,19 @@ public sealed class BingoPlayer : ModPlayer
 	{
 		if (BingoGame.ToggleBoardKeybind?.JustPressed == true && !BingoUISystem.IsEditingText)
 			BingoUISystem.Toggle();
+	}
+
+	private void FreezeDuringPreparation()
+	{
+		if (BingoWorldSystem.Phase != BingoGamePhase.Preparing)
+			return;
+
+		Player.velocity = Vector2.Zero;
+		Player.fallStart = (int)(Player.position.Y / 16f);
+		Player.itemAnimation = 0;
+		Player.itemTime = 0;
+		Player.reuseDelay = 0;
+		Player.channel = false;
 	}
 
 	private void ForcePvpIfNeeded()

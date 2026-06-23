@@ -48,7 +48,7 @@ public sealed class NoRetreatTeleportSystem : ModSystem
 	private static void PreventNoRetreatTeleport(Terraria.On_Player.orig_Teleport orig, Player self,
 		Vector2 newPos, int Style, int extraInfo)
 	{
-		if (NoRetreat.IsActive(self))
+		if (BingoWorldSystem.Phase == BingoGamePhase.Preparing || NoRetreat.IsActive(self))
 			return;
 
 		orig(self, newPos, Style, extraInfo);

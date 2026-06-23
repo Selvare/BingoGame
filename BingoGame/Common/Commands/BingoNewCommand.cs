@@ -33,11 +33,7 @@ public sealed class BingoStatusCommand : ModCommand
 
 		if (Main.netMode == NetmodeID.SinglePlayer)
 		{
-			string singleResult = BingoWorldSystem.Phase == BingoGamePhase.Finished
-				? Language.GetTextValue(BingoWorldSystem.FinishReason == BingoFinishReason.Natural
-					? "Mods.BingoGame.UI.ChallengeSuccess"
-					: "Mods.BingoGame.UI.ChallengeIncomplete")
-				: Language.GetTextValue("Mods.BingoGame.UI.InProgress");
+			string singleResult = SinglePlayerResultText();
 			string score = Language.GetTextValue("Mods.BingoGame.UI.PersonalScore",
 				BingoWorldSystem.GetTeamScore(BingoWorldSystem.SinglePlayerTeam));
 			caller.Reply(Language.GetTextValue("Mods.BingoGame.Commands.Status", BingoWorldSystem.BoardSize,
@@ -48,13 +44,31 @@ public sealed class BingoStatusCommand : ModCommand
 		string scores = string.Join(Language.GetTextValue("Mods.BingoGame.Commands.ScoreSeparator"), Enumerable.Range(1, 5)
 			.Select(team => Language.GetTextValue("Mods.BingoGame.UI.TeamScore", BingoTeamDisplay.GetName(team),
 				BingoWorldSystem.GetTeamScore(team))));
-		string result = BingoWorldSystem.Phase == BingoGamePhase.Finished
-			? BingoWorldSystem.IsDraw
-				? Language.GetTextValue("Mods.BingoGame.UI.Draw")
-				: Language.GetTextValue("Mods.BingoGame.UI.TeamWon", BingoTeamDisplay.GetName(BingoWorldSystem.WinningTeam))
-			: Language.GetTextValue("Mods.BingoGame.UI.InProgress");
+		string result = MultiplayerResultText();
 		caller.Reply(Language.GetTextValue("Mods.BingoGame.Commands.Status", BingoWorldSystem.BoardSize,
 			RuleName(BingoWorldSystem.WinRule), result, scores), Color.LightBlue);
+	}
+
+	private static string SinglePlayerResultText()
+	{
+		if (BingoWorldSystem.Phase == BingoGamePhase.Preparing)
+			return Language.GetTextValue("Mods.BingoGame.UI.Preparation");
+		if (BingoWorldSystem.Phase != BingoGamePhase.Finished)
+			return Language.GetTextValue("Mods.BingoGame.UI.InProgress");
+		return Language.GetTextValue(BingoWorldSystem.FinishReason == BingoFinishReason.Natural
+			? "Mods.BingoGame.UI.ChallengeSuccess"
+			: "Mods.BingoGame.UI.ChallengeIncomplete");
+	}
+
+	private static string MultiplayerResultText()
+	{
+		if (BingoWorldSystem.Phase == BingoGamePhase.Preparing)
+			return Language.GetTextValue("Mods.BingoGame.UI.Preparation");
+		if (BingoWorldSystem.Phase != BingoGamePhase.Finished)
+			return Language.GetTextValue("Mods.BingoGame.UI.InProgress");
+		return BingoWorldSystem.IsDraw
+			? Language.GetTextValue("Mods.BingoGame.UI.Draw")
+			: Language.GetTextValue("Mods.BingoGame.UI.TeamWon", BingoTeamDisplay.GetName(BingoWorldSystem.WinningTeam));
 	}
 
 	private static string RuleName(BingoWinRule rule) => Language.GetTextValue(rule == BingoWinRule.Line

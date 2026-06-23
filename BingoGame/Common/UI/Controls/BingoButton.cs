@@ -9,23 +9,30 @@ internal sealed class BingoButton : UIPanel
 {
 	private readonly Action _action;
 	private readonly Color _normalColor;
+	private readonly bool _enabled;
 
-	public BingoButton(Action action, bool selected, bool emphasized, Color? backgroundColor = null)
+	public BingoButton(Action action, bool selected, bool emphasized, Color? backgroundColor = null,
+		bool enabled = true)
 	{
 		_action = action;
+		_enabled = enabled;
 		OverflowHidden = true;
 		SetPadding(4f);
 		BingoUITheme.Apply(this, selected, emphasized);
 		_normalColor = backgroundColor ?? BackgroundColor;
 		BackgroundColor = BingoUITheme.WithOpacity(_normalColor);
-		OnLeftClick += (_, _) => _action();
+		OnLeftClick += (_, _) =>
+		{
+			if (_enabled)
+				_action();
+		};
 	}
 
 	public override void Update(GameTime gameTime)
 	{
 		base.Update(gameTime);
 		Color normalColor = BingoUITheme.WithOpacity(_normalColor);
-		BackgroundColor = IsMouseHovering
+		BackgroundColor = IsMouseHovering && _enabled
 			? BingoUITheme.WithOpacity(Color.Lerp(normalColor, Color.White, 0.16f))
 			: normalColor;
 		BorderColor = BingoUITheme.WithFullOpacity(BorderColor);
@@ -33,4 +40,3 @@ internal sealed class BingoButton : UIPanel
 			Main.LocalPlayer.mouseInterface = true;
 	}
 }
-

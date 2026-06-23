@@ -56,6 +56,15 @@ public sealed class BingoGameConfig : ModConfig
 	[DefaultValue(false)]
 	public bool FogOfWarEnabled;
 
+	[DefaultValue(false)]
+	public bool PreparationEnabled;
+
+	[DefaultValue(30)]
+	[Range(5, 60)]
+	[Increment(5)]
+	[Slider]
+	public int PreparationSeconds = 30;
+
 	public List<BingoWhitelistEntry> Whitelists = new();
 
 	public List<BingoInitialItemListEntry> InitialItemLists = CreateDefaultInitialItemLists();

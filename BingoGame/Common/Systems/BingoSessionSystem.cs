@@ -16,9 +16,10 @@ namespace BingoGame.Common.Systems;
 
 public enum BingoGamePhase : byte
 {
-	NotStarted,
-	InProgress,
-	Finished
+	NotStarted = 0,
+	InProgress = 1,
+	Finished = 2,
+	Preparing = 3
 }
 
 public enum BingoFinishReason : byte
@@ -67,7 +68,7 @@ public sealed record BingoContributionStanding(int Rank, byte Team, string Playe
 public sealed class BingoWorldSystem : ModSystem
 {
 	public const byte SinglePlayerTeam = 2;
-	private const int SaveVersion = 6;
+	private const int SaveVersion = 7;
 	private const long TicksPerSecond = 60;
 	private static readonly int[] EmptyInts = Array.Empty<int>();
 	private static readonly byte[] EmptyBytes = Array.Empty<byte>();
@@ -93,6 +94,8 @@ public sealed class BingoWorldSystem : ModSystem
 	public static bool ForcePvpEnabled { get; private set; }
 	public static bool NoRetreatEnabled { get; private set; }
 	public static bool FogOfWarEnabled { get; private set; }
+	public static long PreparationTicks { get; private set; }
+	public static long PreparationRemainingTicks { get; private set; }
 	public static int[] InitialItemTypes { get; private set; } = EmptyInts;
 	public static IReadOnlyList<BingoClaimRecord> Claims => _claims;
 	public static int StateRevision { get; private set; }
@@ -104,6 +107,9 @@ public sealed class BingoWorldSystem : ModSystem
 	private static ulong _clientSyncUpdateCount;
 	private static Dictionary<byte, int> _randomStartLeaders = new();
 	private static int _randomStartFollowerDelay;
+	private static bool[] _preparationReady = Array.Empty<bool>();
+	private static int _lastPreparationPlayerCount;
+	private static int _lastPreparationReadyCount;
 
 	public static bool HasBoard => BoardSize is >= 2 and <= 10
 		&& ItemTypes.Length == BoardSize * BoardSize
@@ -135,6 +141,8 @@ public sealed class BingoWorldSystem : ModSystem
 		ForcePvpEnabled = false;
 		NoRetreatEnabled = false;
 		FogOfWarEnabled = false;
+		PreparationTicks = 0;
+		PreparationRemainingTicks = 0;
 		InitialItemTypes = EmptyInts;
 		_claims = new List<BingoClaimRecord>();
 		_clientSyncUpdateCount = Main.GameUpdateCount;
@@ -143,6 +151,9 @@ public sealed class BingoWorldSystem : ModSystem
 		_nextConnectionOrder = 0;
 		_randomStartLeaders = new Dictionary<byte, int>();
 		_randomStartFollowerDelay = 0;
+		_preparationReady = new bool[Main.maxPlayers];
+		_lastPreparationPlayerCount = 0;
+		_lastPreparationReadyCount = 0;
 		StateRevision++;
 	}
 
@@ -161,7 +172,15 @@ public sealed class BingoWorldSystem : ModSystem
 
 	public override void PostUpdateWorld()
 	{
-		if (Main.netMode == NetmodeID.MultiplayerClient || Phase != BingoGamePhase.InProgress)
+		if (Main.netMode == NetmodeID.MultiplayerClient)
+			return;
+
+		if (Phase == BingoGamePhase.Preparing)
+		{
+			UpdatePreparation();
+			return;
+		}
+		if (Phase != BingoGamePhase.InProgress)
 			return;
 
 		if (ElapsedTicks < long.MaxValue)
@@ -203,6 +222,8 @@ public sealed class BingoWorldSystem : ModSystem
 		tag["ForcePvpEnabled"] = ForcePvpEnabled;
 		tag["NoRetreatEnabled"] = NoRetreatEnabled;
 		tag["FogOfWarEnabled"] = FogOfWarEnabled;
+		tag["PreparationTicks"] = PreparationTicks;
+		tag["PreparationRemainingTicks"] = PreparationRemainingTicks;
 		List<ItemDefinition> initialDefinitions = new(InitialItemTypes.Length);
 		foreach (int itemType in InitialItemTypes)
 			initialDefinitions.Add(new ItemDefinition(itemType));
@@ -288,6 +309,10 @@ public sealed class BingoWorldSystem : ModSystem
 		ForcePvpEnabled = version >= 4 && tag.GetBool("ForcePvpEnabled");
 		NoRetreatEnabled = version >= 6 && ForcePvpEnabled && tag.GetBool("NoRetreatEnabled");
 		FogOfWarEnabled = version >= 4 && tag.GetBool("FogOfWarEnabled");
+		PreparationTicks = version >= 7 ? Math.Max(0L, tag.GetLong("PreparationTicks")) : 0L;
+		PreparationRemainingTicks = version >= 7
+			? Math.Clamp(tag.GetLong("PreparationRemainingTicks"), 0L, PreparationTicks)
+			: 0L;
 		if (version >= 4)
 		{
 			IList<ItemDefinition> initialDefinitions = tag.GetList<ItemDefinition>("InitialItemDefinitions");
@@ -327,9 +352,18 @@ public sealed class BingoWorldSystem : ModSystem
 			ClearCompletionState();
 			ElapsedTicks = 0;
 			TimeLimitTicks = 0;
+			PreparationTicks = 0;
+			PreparationRemainingTicks = 0;
 			_claims.Clear();
 		}
+		else if (Phase == BingoGamePhase.Preparing && PreparationRemainingTicks <= 0)
+		{
+			Phase = BingoGamePhase.InProgress;
+			PreparationTicks = 0;
+			PreparationRemainingTicks = 0;
+		}
 
+		ClearPreparationReady();
 		RebuildLookup();
 		_clientSyncUpdateCount = Main.GameUpdateCount;
 		StateRevision++;
@@ -356,6 +390,11 @@ public sealed class BingoWorldSystem : ModSystem
 		writer.Write(ForcePvpEnabled);
 		writer.Write(NoRetreatEnabled);
 		writer.Write(FogOfWarEnabled);
+		writer.Write(PreparationTicks);
+		writer.Write(PreparationRemainingTicks);
+		writer.Write((ushort)Math.Min(_preparationReady.Length, Main.maxPlayers));
+		for (int i = 0; i < _preparationReady.Length && i < Main.maxPlayers; i++)
+			writer.Write(_preparationReady[i]);
 		writer.Write((ushort)Math.Min(InitialItemTypes.Length, ushort.MaxValue));
 		for (int i = 0; i < InitialItemTypes.Length && i < ushort.MaxValue; i++)
 			writer.Write(InitialItemTypes[i]);
@@ -398,6 +437,16 @@ public sealed class BingoWorldSystem : ModSystem
 		bool forcePvpEnabled = reader.ReadBoolean();
 		bool noRetreatEnabled = reader.ReadBoolean();
 		bool fogOfWarEnabled = reader.ReadBoolean();
+		long preparationTicks = reader.ReadInt64();
+		long preparationRemainingTicks = reader.ReadInt64();
+		int preparationReadyCount = reader.ReadUInt16();
+		bool[] preparationReady = new bool[Math.Min(preparationReadyCount, Main.maxPlayers)];
+		for (int i = 0; i < preparationReadyCount; i++)
+		{
+			bool ready = reader.ReadBoolean();
+			if (i < preparationReady.Length)
+				preparationReady[i] = ready;
+		}
 		int initialItemCount = reader.ReadUInt16();
 		int[] initialItemTypes = new int[initialItemCount];
 		for (int i = 0; i < initialItemCount; i++)
@@ -409,6 +458,8 @@ public sealed class BingoWorldSystem : ModSystem
 			&& size is >= 2 and <= 10
 			&& Enum.IsDefined(typeof(BingoFinishReason), finishReason)
 			&& elapsedTicks >= 0 && timeLimitTicks >= 0
+			&& preparationTicks >= 0 && preparationRemainingTicks >= 0
+			&& preparationRemainingTicks <= preparationTicks
 			&& killStealChance is >= 0f and <= 1f
 			&& count == size * size;
 		if (!valid)
@@ -441,6 +492,12 @@ public sealed class BingoWorldSystem : ModSystem
 		ForcePvpEnabled = forcePvpEnabled;
 		NoRetreatEnabled = forcePvpEnabled && noRetreatEnabled;
 		FogOfWarEnabled = fogOfWarEnabled;
+		PreparationTicks = phase == BingoGamePhase.Preparing ? preparationTicks : 0L;
+		PreparationRemainingTicks = phase == BingoGamePhase.Preparing ? preparationRemainingTicks : 0L;
+		_preparationReady = new bool[Main.maxPlayers];
+		Array.Copy(preparationReady, _preparationReady, preparationReady.Length);
+		_lastPreparationPlayerCount = GetPreparationPlayerCount();
+		_lastPreparationReadyCount = GetPreparationReadyCount();
 		HashSet<int> sanitizedInitialItemTypes = new();
 		foreach (int itemType in initialItemTypes)
 		{
@@ -482,7 +539,7 @@ public sealed class BingoWorldSystem : ModSystem
 		bool timeLimitEnabled, int timeLimitMinutes, int timeLimitSeconds, bool lineProgressTiebreakEnabled,
 		bool lineAutoDegradeEnabled, bool killStealEnabled, float killStealChance, bool randomStartEnabled,
 		bool randomStartTeamTogether, bool forcePvpEnabled, bool noRetreatEnabled, bool fogOfWarEnabled,
-		out BingoValidationFailure failure)
+		bool preparationEnabled, int preparationSeconds, out BingoValidationFailure failure)
 	{
 		failure = default;
 		if (!IsPlayerHost(requester))
@@ -498,6 +555,8 @@ public sealed class BingoWorldSystem : ModSystem
 		if (!TryCalculateTimeLimit(timeLimitEnabled, timeLimitMinutes, timeLimitSeconds, out long timeLimitTicks))
 			return Fail(BingoValidationError.InvalidTimeLimit, -1, out failure);
 		if (killStealChance is < 0f or > 1f || float.IsNaN(killStealChance))
+			return Fail(BingoValidationError.InvalidAdvancedOptions, -1, out failure);
+		if (preparationEnabled && preparationSeconds is (< 5 or > 60))
 			return Fail(BingoValidationError.InvalidAdvancedOptions, -1, out failure);
 
 		int[] prepared = new int[requestedTypes.Count];
@@ -582,12 +641,16 @@ public sealed class BingoWorldSystem : ModSystem
 		ForcePvpEnabled = forcePvpEnabled;
 		NoRetreatEnabled = forcePvpEnabled && noRetreatEnabled;
 		FogOfWarEnabled = fogOfWarEnabled;
+		PreparationTicks = preparationEnabled ? preparationSeconds * TicksPerSecond : 0L;
+		PreparationRemainingTicks = PreparationTicks;
 		InitialItemTypes = initialItemSnapshot.ToArray();
 		_claims = new List<BingoClaimRecord>(prepared.Length);
-		Phase = BingoGamePhase.InProgress;
+		Phase = preparationEnabled ? BingoGamePhase.Preparing : BingoGamePhase.InProgress;
+		ClearPreparationReady();
 		ClearCompletionState();
 		RebuildLookup();
-		ScheduleRandomStart();
+		if (Phase == BingoGamePhase.InProgress)
+			ScheduleRandomStart();
 		StateChanged();
 		return true;
 	}
@@ -602,7 +665,7 @@ public sealed class BingoWorldSystem : ModSystem
 			case BingoEndAction.Settle when Phase == BingoGamePhase.InProgress:
 				FinishForced(BingoFinishReason.Manual);
 				break;
-			case BingoEndAction.Cancel when Phase == BingoGamePhase.InProgress:
+			case BingoEndAction.Cancel when Phase is BingoGamePhase.Preparing or BingoGamePhase.InProgress:
 				ResetGameCore();
 				break;
 			case BingoEndAction.Reset when Phase == BingoGamePhase.Finished:
@@ -612,6 +675,23 @@ public sealed class BingoWorldSystem : ModSystem
 				return false;
 		}
 		StateChanged();
+		return true;
+	}
+
+	internal static bool TrySetReady(int playerId)
+	{
+		if (Phase != BingoGamePhase.Preparing || !IsActivePreparationPlayer(playerId))
+			return false;
+		EnsurePreparationReadySize();
+		if (_preparationReady[playerId])
+			return true;
+
+		_preparationReady[playerId] = true;
+		UpdatePreparationSnapshot();
+		if (AllActivePlayersReady())
+			StartPreparedGame();
+		else
+			StateChanged();
 		return true;
 	}
 
@@ -669,6 +749,52 @@ public sealed class BingoWorldSystem : ModSystem
 		long added = delta > long.MaxValue ? long.MaxValue : (long)delta;
 		long displayed = ElapsedTicks > long.MaxValue - added ? long.MaxValue : ElapsedTicks + added;
 		return TimeLimitTicks > 0 ? Math.Min(displayed, TimeLimitTicks) : displayed;
+	}
+
+	public static long GetDisplayPreparationRemainingTicks()
+	{
+		if (Phase != BingoGamePhase.Preparing)
+			return 0L;
+		if (Main.netMode != NetmodeID.MultiplayerClient)
+			return PreparationRemainingTicks;
+
+		ulong delta = Main.GameUpdateCount >= _clientSyncUpdateCount
+			? Main.GameUpdateCount - _clientSyncUpdateCount
+			: 0;
+		long elapsed = delta > long.MaxValue ? long.MaxValue : (long)delta;
+		return Math.Max(0L, PreparationRemainingTicks - elapsed);
+	}
+
+	public static bool IsLocalPlayerReady()
+	{
+		return Main.myPlayer is >= 0 and < Main.maxPlayers && IsPlayerReady(Main.myPlayer);
+	}
+
+	public static bool IsPlayerReady(int playerId)
+	{
+		return playerId >= 0 && playerId < _preparationReady.Length && _preparationReady[playerId];
+	}
+
+	public static int GetPreparationPlayerCount()
+	{
+		int count = 0;
+		for (int i = 0; i < Main.maxPlayers; i++)
+		{
+			if (IsActivePreparationPlayer(i))
+				count++;
+		}
+		return count;
+	}
+
+	public static int GetPreparationReadyCount()
+	{
+		int count = 0;
+		for (int i = 0; i < Main.maxPlayers; i++)
+		{
+			if (IsActivePreparationPlayer(i) && IsPlayerReady(i))
+				count++;
+		}
+		return count;
 	}
 
 	public static string FormatElapsed(long ticks)
@@ -765,8 +891,11 @@ public sealed class BingoWorldSystem : ModSystem
 		Phase = BingoGamePhase.NotStarted;
 		ElapsedTicks = 0;
 		TimeLimitTicks = 0;
+		PreparationTicks = 0;
+		PreparationRemainingTicks = 0;
 		_claims = new List<BingoClaimRecord>();
 		ClearAdvancedOptions();
+		ClearPreparationReady();
 		ClearCompletionState();
 		RebuildLookup();
 		StateRevision++;
@@ -1137,12 +1266,98 @@ public sealed class BingoWorldSystem : ModSystem
 		Owners = new byte[ItemTypes.Length];
 		ElapsedTicks = 0;
 		TimeLimitTicks = 0;
+		PreparationTicks = 0;
+		PreparationRemainingTicks = 0;
 		_claims = new List<BingoClaimRecord>();
 		ClearAdvancedOptions();
 		_randomStartLeaders.Clear();
 		_randomStartFollowerDelay = 0;
+		ClearPreparationReady();
 		ClearCompletionState();
 		RebuildLookup();
+	}
+
+	private static void UpdatePreparation()
+	{
+		if (PreparationRemainingTicks > 0)
+			PreparationRemainingTicks--;
+
+		bool countChanged = UpdatePreparationSnapshot();
+		if (PreparationRemainingTicks <= 0 || AllActivePlayersReady())
+		{
+			StartPreparedGame();
+			return;
+		}
+		if (countChanged)
+			StateChanged();
+	}
+
+	private static void StartPreparedGame()
+	{
+		if (Phase != BingoGamePhase.Preparing)
+			return;
+
+		Phase = BingoGamePhase.InProgress;
+		ElapsedTicks = 0;
+		PreparationTicks = 0;
+		PreparationRemainingTicks = 0;
+		ClearPreparationReady();
+		ScheduleRandomStart();
+		StateChanged();
+	}
+
+	private static bool UpdatePreparationSnapshot()
+	{
+		EnsurePreparationReadySize();
+		bool changed = false;
+		for (int i = 0; i < _preparationReady.Length; i++)
+		{
+			if (!IsActivePreparationPlayer(i) && _preparationReady[i])
+			{
+				_preparationReady[i] = false;
+				changed = true;
+			}
+		}
+
+		int playerCount = GetPreparationPlayerCount();
+		int readyCount = GetPreparationReadyCount();
+		if (playerCount == _lastPreparationPlayerCount && readyCount == _lastPreparationReadyCount && !changed)
+			return false;
+		_lastPreparationPlayerCount = playerCount;
+		_lastPreparationReadyCount = readyCount;
+		return true;
+	}
+
+	private static bool AllActivePlayersReady()
+	{
+		int activePlayers = GetPreparationPlayerCount();
+		return activePlayers > 0 && GetPreparationReadyCount() >= activePlayers;
+	}
+
+	private static void EnsurePreparationReadySize()
+	{
+		if (_preparationReady.Length == Main.maxPlayers)
+			return;
+		bool[] resized = new bool[Main.maxPlayers];
+		Array.Copy(_preparationReady, resized, Math.Min(_preparationReady.Length, resized.Length));
+		_preparationReady = resized;
+	}
+
+	private static void ClearPreparationReady()
+	{
+		_preparationReady = new bool[Main.maxPlayers];
+		_lastPreparationPlayerCount = GetPreparationPlayerCount();
+		_lastPreparationReadyCount = 0;
+	}
+
+	private static bool IsActivePreparationPlayer(int playerId)
+	{
+		if (playerId is < 0 || playerId >= Main.maxPlayers)
+			return false;
+		Player player = Main.player[playerId];
+		if (!player.active)
+			return false;
+		return Main.netMode != NetmodeID.Server || Netplay.Clients[playerId].State == 10;
 	}
 
 	private static void ScheduleRandomStart()

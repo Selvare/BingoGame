@@ -1,6 +1,7 @@
 using System;
 using BingoGame.Common.Configs;
 using BingoGame.Common.UI;
+using Microsoft.Xna.Framework;
 using Terraria;
 using Terraria.ID;
 using Terraria.UI;
@@ -13,7 +14,8 @@ internal sealed partial class BingoMenuState
 	{
 		int size = BingoWorldSystem.BoardSize;
 		bool host = BingoWorldSystem.IsLocalPlayerHost;
-		float footerHeight = host ? 140f : 95f;
+		bool preparing = BingoWorldSystem.Phase == BingoGamePhase.Preparing;
+		float footerHeight = preparing ? host ? 170f : 125f : host ? 140f : 95f;
 		float available = Math.Min(Main.screenWidth - 100f, Main.screenHeight - 190f);
 		float defaultCellSize = Math.Clamp(available / size, 36f, 64f);
 		float minimumWidth = Math.Max(360f, size * 36f + 40f);
@@ -26,7 +28,10 @@ internal sealed partial class BingoMenuState
 		string title = BingoWorldSystem.WinRule == BingoWinRule.Line ? Text("UI.RuleLine") : Text("UI.RuleMajority");
 		BingoAdaptiveText titleText = CreateText(panel, Text("UI.BoardTitle", title), 0.5f, 0.5f, 1.1f,
 			BingoTextRole.Title);
-		_timerText = CreateText(panel, BingoWorldSystem.FormatElapsed(BingoWorldSystem.GetDisplayElapsedTicks()),
+		long displayTicks = preparing
+			? BingoWorldSystem.GetDisplayPreparationRemainingTicks()
+			: BingoWorldSystem.GetDisplayElapsedTicks();
+		_timerText = CreateText(panel, BingoWorldSystem.FormatElapsed(displayTicks),
 			0.5f, 0.5f, 0.92f, BingoTextRole.Compact);
 		header.AddFixed(_timerText, 70f);
 		header.AddWeighted(titleText, 1f, 120f);
@@ -56,6 +61,24 @@ internal sealed partial class BingoMenuState
 				BingoTextRole.Compact));
 		BingoAdaptiveText resultText = CreateText(panel, ResultText(), 0.5f, 0.5f, 0.82f,
 			BingoTextRole.Compact, ResultColor());
+		BingoAdaptiveText preparationCountText = null;
+		UIElement readyRow = null;
+		if (preparing)
+		{
+			preparationCountText = CreateText(panel,
+				Text("UI.PreparationReadyCount", BingoWorldSystem.GetPreparationReadyCount(),
+					BingoWorldSystem.GetPreparationPlayerCount()),
+				0.5f, 0.5f, 0.78f, BingoTextRole.Compact, Color.LightGray);
+			bool ready = BingoWorldSystem.IsLocalPlayerReady();
+			BingoButton readyButton = CreateButton(panel, Text(ready ? "UI.ReadyDone" : "UI.Ready"),
+				BingoGame.RequestReady, selected: ready, emphasized: !ready, textRole: BingoTextRole.Compact,
+				backgroundColor: ready ? BingoUITheme.SuccessBackground : null, enabled: !ready);
+			readyButton.Width.Set(140f, 0f);
+			readyButton.Height.Set(0f, 1f);
+			readyButton.HAlign = 0.5f;
+			readyRow = new UIElement();
+			readyRow.Append(readyButton);
+		}
 
 		UIElement stopRow = null;
 		if (host)
@@ -63,8 +86,9 @@ internal sealed partial class BingoMenuState
 			if (_confirmingStop)
 			{
 				UIHorizontalStack confirmation = new(8f);
-				confirmation.AddWeighted(CreateButton(panel, Text("UI.SettleGame"),
-					() => RequestEnd(BingoEndAction.Settle), emphasized: true, textRole: BingoTextRole.Compact));
+				if (!preparing)
+					confirmation.AddWeighted(CreateButton(panel, Text("UI.SettleGame"),
+						() => RequestEnd(BingoEndAction.Settle), emphasized: true, textRole: BingoTextRole.Compact));
 				confirmation.AddWeighted(CreateButton(panel, Text("UI.Return"), CancelStopConfirmation,
 					textRole: BingoTextRole.Compact));
 				confirmation.AddWeighted(CreateButton(panel, Text("UI.CancelGame"),
@@ -98,6 +122,10 @@ internal sealed partial class BingoMenuState
 		root.AddWeighted(board, 1f, size * 24f);
 		root.AddFixed(scoreRow, 22f);
 		root.AddFixed(resultText, 22f);
+		if (preparationCountText != null)
+			root.AddFixed(preparationCountText, 22f);
+		if (readyRow != null)
+			root.AddFixed(readyRow, 32f);
 		if (stopRow != null)
 			root.AddFixed(stopRow, 32f);
 		panel.Append(root);

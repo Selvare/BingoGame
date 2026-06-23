@@ -144,7 +144,7 @@ internal sealed partial class BingoMenuState : UIState
 		_shownWidth = Main.screenWidth;
 		_shownHeight = Main.screenHeight;
 
-		if (BingoWorldSystem.Phase == BingoGamePhase.InProgress)
+		if (BingoWorldSystem.Phase is BingoGamePhase.Preparing or BingoGamePhase.InProgress)
 			BuildGameBoard();
 		else if (!BingoWorldSystem.IsLocalPlayerHost)
 			BuildWaitingMessage();
@@ -167,6 +167,9 @@ internal sealed partial class BingoMenuState : UIState
 	public override void Update(GameTime gameTime)
 	{
 		base.Update(gameTime);
-		_timerText?.SetText(BingoWorldSystem.FormatElapsed(BingoWorldSystem.GetDisplayElapsedTicks()));
+		long ticks = BingoWorldSystem.Phase == BingoGamePhase.Preparing
+			? BingoWorldSystem.GetDisplayPreparationRemainingTicks()
+			: BingoWorldSystem.GetDisplayElapsedTicks();
+		_timerText?.SetText(BingoWorldSystem.FormatElapsed(ticks));
 	}
 }

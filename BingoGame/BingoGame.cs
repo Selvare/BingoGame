@@ -24,7 +24,8 @@ public sealed class BingoGame : Mod
 		InventoryActionRejected,
 		RequestKillStealDrop,
 		ApplyKillStealDrop,
-		ApplyRandomTeleport
+		ApplyRandomTeleport,
+		RequestReady
 	}
 
 	internal enum InventoryActionError : byte
@@ -87,6 +88,9 @@ public sealed class BingoGame : Mod
 			case PacketType.ApplyRandomTeleport when Main.netMode == NetmodeID.MultiplayerClient:
 				RequestLocalRandomTeleport();
 				break;
+			case PacketType.RequestReady when Main.netMode == NetmodeID.Server:
+				BingoWorldSystem.TrySetReady(whoAmI);
+				break;
 			default:
 				Logger.Warn($"Ignored invalid BINGO packet {type} from {whoAmI}.");
 				break;
@@ -97,7 +101,8 @@ public sealed class BingoGame : Mod
 		int[] whitelistTypes, int[] initialItemTypes, bool timeLimitEnabled, int timeLimitMinutes,
 		int timeLimitSeconds, bool lineProgressTiebreakEnabled, bool lineAutoDegradeEnabled,
 		bool killStealEnabled, float killStealChance, bool randomStartEnabled, bool randomStartTeamTogether,
-		bool forcePvpEnabled, bool noRetreatEnabled, bool fogOfWarEnabled)
+		bool forcePvpEnabled, bool noRetreatEnabled, bool fogOfWarEnabled, bool preparationEnabled,
+		int preparationSeconds)
 	{
 		if (Main.netMode == NetmodeID.SinglePlayer)
 		{
@@ -105,7 +110,7 @@ public sealed class BingoGame : Mod
 				initialItemTypes, timeLimitEnabled, timeLimitMinutes, timeLimitSeconds,
 				lineProgressTiebreakEnabled, lineAutoDegradeEnabled, killStealEnabled, killStealChance,
 				randomStartEnabled, randomStartTeamTogether, forcePvpEnabled, noRetreatEnabled, fogOfWarEnabled,
-				out BingoValidationFailure failure))
+				preparationEnabled, preparationSeconds, out BingoValidationFailure failure))
 				BingoUISystem.SetValidationFailure(failure.Error, failure.CellIndex);
 			return;
 		}
@@ -136,6 +141,8 @@ public sealed class BingoGame : Mod
 		packet.Write(forcePvpEnabled);
 		packet.Write(noRetreatEnabled);
 		packet.Write(fogOfWarEnabled);
+		packet.Write(preparationEnabled);
+		packet.Write(preparationSeconds);
 		packet.Write((ushort)itemTypes.Length);
 		foreach (int itemType in itemTypes)
 			packet.Write(itemType);
@@ -146,6 +153,19 @@ public sealed class BingoGame : Mod
 		packet.Write((ushort)initialItemTypes.Length);
 		foreach (int itemType in initialItemTypes)
 			packet.Write(itemType);
+		packet.Send();
+	}
+
+	internal static void RequestReady()
+	{
+		if (Main.netMode == NetmodeID.SinglePlayer)
+		{
+			BingoWorldSystem.TrySetReady(Main.myPlayer);
+			return;
+		}
+
+		ModPacket packet = ModContent.GetInstance<BingoGame>().GetPacket();
+		packet.Write((byte)PacketType.RequestReady);
 		packet.Send();
 	}
 
@@ -239,6 +259,8 @@ public sealed class BingoGame : Mod
 		bool forcePvpEnabled = reader.ReadBoolean();
 		bool noRetreatEnabled = reader.ReadBoolean();
 		bool fogOfWarEnabled = reader.ReadBoolean();
+		bool preparationEnabled = reader.ReadBoolean();
+		int preparationSeconds = reader.ReadInt32();
 		int count = reader.ReadUInt16();
 		if (count > 100)
 		{
@@ -274,7 +296,7 @@ public sealed class BingoGame : Mod
 			initialItemTypes, timeLimitEnabled, timeLimitMinutes, timeLimitSeconds,
 			lineProgressTiebreakEnabled, lineAutoDegradeEnabled, killStealEnabled, killStealChance,
 			randomStartEnabled, randomStartTeamTogether, forcePvpEnabled, noRetreatEnabled, fogOfWarEnabled,
-			out BingoValidationFailure failure))
+			preparationEnabled, preparationSeconds, out BingoValidationFailure failure))
 			SendStartRejected(whoAmI, failure);
 	}
 

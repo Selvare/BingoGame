@@ -16,6 +16,8 @@ UI: {
 	ForcePvp: PVP mode
 	NoRetreat: No retreat
 	FogOfWar: Fog of war
+	Preparation: Preparation phase
+	PreparationSeconds: Preparation time
 	Minutes: Minutes
 	Seconds: Seconds
 	RuleLine: Line
@@ -66,6 +68,9 @@ UI: {
 	PersonalContribution: "{0}: obtained {1} items {2}"
 	NoClaims: No cells claimed
 	InProgress: Game in progress
+	Ready: Ready
+	ReadyDone: Ready
+	PreparationReadyCount: Ready players: {0}/{1}
 	GameOver: Game Over
 	ChallengeSuccess: Challenge complete
 	ChallengeIncomplete: Challenge incomplete
@@ -142,6 +147,8 @@ UI: {
 		ForcePvp: All players are forced into PvP mode for the duration of the match.
 		NoRetreat: While PVP mode is enabled, players cannot teleport for a short time after taking damage from an opposing player.
 		FogOfWar: Icons representing players from opposing teams and bosses are hidden on the map.
+		Preparation: After starting a game, enter a preparation phase first. The game begins when everyone is ready or the countdown ends.
+		PreparationSeconds: Preparation countdown duration, from 5 to 60 seconds.
 		LineProgressTiebreak: In the event of a tie, compare the maximum line-completion progress (across rows, columns, and diagonals) achieved by each team.
 		LineAutoDegrade: In the event of a tie, fall back to comparing the total scores of each team. (This rule has the lowest priority.)
 	}
@@ -371,6 +378,16 @@ Configs: {
 		FogOfWarEnabled: {
 			Label: Enable fog of war
 			Tooltip: When enabled, the map hides player heads and boss icons.
+		}
+
+		PreparationEnabled: {
+			Label: Enable preparation phase
+			Tooltip: When enabled, starting a game enters preparation before live play begins.
+		}
+
+		PreparationSeconds: {
+			Label: Preparation time
+			Tooltip: Must be between 5 and 60 seconds.
 		}
 
 		InitialItemLists: {

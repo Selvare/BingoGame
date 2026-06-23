@@ -126,9 +126,9 @@ internal sealed partial class BingoMenuState
 
 	private static BingoButton CreateButton(BingoResponsivePanel panel, string label, Action action,
 		bool selected = false, bool emphasized = false, BingoTextRole textRole = BingoTextRole.Normal,
-		Color? backgroundColor = null)
+		Color? backgroundColor = null, bool enabled = true)
 	{
-		BingoButton button = new(action, selected, emphasized, backgroundColor);
+		BingoButton button = new(action, selected, emphasized, backgroundColor, enabled);
 		BingoAdaptiveText text = CreateText(panel, label, 0.5f, 0.5f, 0.86f, textRole);
 		text.Width.Set(0f, 1f);
 		text.Height.Set(0f, 1f);
