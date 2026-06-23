@@ -1,4 +1,5 @@
 using System;
+using BingoGame.Common.UI;
 using Microsoft.Xna.Framework;
 using Terraria;
 using Terraria.GameContent.UI.Elements;

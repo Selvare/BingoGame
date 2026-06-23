@@ -1,15 +1,18 @@
 using System;
 using BingoGame.Common.Systems;
 using BingoGame.Common.Tools;
-using BingoGame.Common.UI;
+using BingoGame.Common.UI.Theme;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
 using Terraria.GameContent.UI.Elements;
 using Terraria.Localization;
 
-namespace BingoGame.Common.Systems;
+namespace BingoGame.Common.UI.Components;
 
+/// <summary>
+/// 棋盘格子，显示单个物品和占领状态
+/// </summary>
 internal sealed class BingoBoardCell : UIPanel
 {
 	private readonly int _itemType;
@@ -43,10 +46,10 @@ internal sealed class BingoBoardCell : UIPanel
 	protected override void DrawSelf(SpriteBatch spriteBatch)
 	{
 		BackgroundColor = _owner is >= 1 and <= 5
-			? BingoUITheme.WithOpacity(BingoBoardElement.GetTeamColor(_owner))
+			? BingoTheme.WithOpacity(BingoBoardElement.GetTeamColor(_owner))
 			: Color.Transparent;
 		Color borderColor = _borderColor?.Invoke() ?? Color.White;
-		BorderColor = BingoUITheme.WithFullOpacity(borderColor);
+		BorderColor = BingoTheme.WithFullOpacity(borderColor);
 		base.DrawSelf(spriteBatch);
 
 		Rectangle bounds = GetDimensions().ToRectangle();

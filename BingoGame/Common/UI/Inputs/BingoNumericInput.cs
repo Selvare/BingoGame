@@ -1,9 +1,10 @@
 using System;
 using System.Linq;
-using BingoGame.Common.UI;
-using BingoGame.Common.UI.Inputs;
-using BingoGame.Common.UI.Layout;
+using BingoGame.Common.Systems;
 using BingoGame.Common.Tools;
+using BingoGame.Common.UI.Components;
+using BingoGame.Common.UI.Layout;
+using BingoGame.Common.UI.Theme;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
@@ -12,8 +13,11 @@ using Terraria.GameInput;
 using Terraria.ID;
 using Terraria.UI;
 
-namespace BingoGame.Common.Systems;
+namespace BingoGame.Common.UI.Inputs;
 
+/// <summary>
+/// 数字输入框，只接受数字输入
+/// </summary>
 internal sealed class BingoNumericInput : UIPanel
 {
 	private static BingoNumericInput _focused;
@@ -25,6 +29,9 @@ internal sealed class BingoNumericInput : UIPanel
 	public static bool AnyFocused => _focused != null;
 	public bool IsInvalid { get; set; }
 
+	/// <summary>
+	/// 创建数字输入框
+	/// </summary>
 	public BingoNumericInput(string hint, int value, Func<float> layoutScale, Action<int> changed)
 	{
 		_hint = hint;
@@ -36,6 +43,9 @@ internal sealed class BingoNumericInput : UIPanel
 		OnLeftClick += (_, _) => Focus();
 	}
 
+	/// <summary>
+	/// 清除焦点
+	/// </summary>
 	public static void ClearFocus()
 	{
 		if (Main.CurrentInputTextTakerOverride == _focused)
@@ -62,7 +72,7 @@ internal sealed class BingoNumericInput : UIPanel
 		Rectangle bounds = dimensions.ToRectangle();
 		bool validItem = int.TryParse(_text, out int itemType) && BingoWorldSystem.IsUsableItemId(itemType);
 		bool invalidItem = _text.Length > 0 && !validItem;
-		BingoUITheme.ApplyInput(this, IsInvalid || invalidItem, _focused == this);
+		BingoTheme.ApplyInput(this, IsInvalid || invalidItem, _focused == this);
 		base.DrawSelf(spriteBatch);
 
 		if (_focused == this)
@@ -107,10 +117,15 @@ internal sealed class BingoNumericInput : UIPanel
 
 	private void Focus()
 	{
-		BingoTextInput.ClearFocus();
+		// 清除文本输入框焦点
+		if (System.Type.GetType("BingoGame.Common.UI.Inputs.BingoTextInput", false) is System.Type textInputType)
+		{
+			var clearFocusMethod = textInputType.GetMethod("ClearFocus", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+			clearFocusMethod?.Invoke(null, new object[] { false });
+		}
+
 		_focused = this;
 		Main.CurrentInputTextTakerOverride = this;
 		Main.clrInput();
 	}
-
 }

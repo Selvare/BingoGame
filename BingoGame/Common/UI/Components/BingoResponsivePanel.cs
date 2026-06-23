@@ -1,11 +1,11 @@
 using System;
-using BingoGame.Common.UI;
+using BingoGame.Common.UI.Theme;
 using Microsoft.Xna.Framework;
 using Terraria;
 using Terraria.GameContent.UI.Elements;
 using Terraria.UI;
 
-namespace BingoGame.Common.Systems;
+namespace BingoGame.Common.UI.Components;
 
 internal enum BingoResizeEdge
 {
@@ -16,6 +16,9 @@ internal enum BingoResizeEdge
 	Bottom = 8
 }
 
+/// <summary>
+/// 响应式面板，支持拖拽和缩放，自适应屏幕大小
+/// </summary>
 internal sealed class BingoResponsivePanel : UIPanel
 {
 	private const float HeaderHeight = 46f;
@@ -34,10 +37,22 @@ internal sealed class BingoResponsivePanel : UIPanel
 	private BingoResizeEdge _resizeEdge;
 	private bool _dragging;
 
+	/// <summary>
+	/// 窗口是否被锁定（禁止拖拽和缩放）
+	/// </summary>
 	public bool Locked { get; set; }
+
+	/// <summary>
+	/// 在header中排除拖拽的UI元素
+	/// </summary>
 	public UIElement DragExclusion { get; set; }
+
 	public float PanelWidth => Width.Pixels;
 	public float PanelHeight => Height.Pixels;
+
+	/// <summary>
+	/// 布局缩放因子，用于响应式UI缩放
+	/// </summary>
 	public float LayoutScale => Math.Clamp(Math.Min(PanelWidth / _referenceWidth, PanelHeight / _referenceHeight),
 		0.75f, 1.35f);
 
@@ -59,8 +74,8 @@ internal sealed class BingoResponsivePanel : UIPanel
 
 	public override void Update(GameTime gameTime)
 	{
-		BackgroundColor = BingoUITheme.WithOpacity(BackgroundColor);
-		BorderColor = BingoUITheme.WithFullOpacity(BorderColor);
+		BackgroundColor = BingoTheme.WithOpacity(BackgroundColor);
+		BorderColor = BingoTheme.WithFullOpacity(BorderColor);
 		base.Update(gameTime);
 		if (ContainsPoint(Main.MouseScreen))
 			Main.LocalPlayer.mouseInterface = true;
@@ -172,4 +187,3 @@ internal sealed class BingoResponsivePanel : UIPanel
 			_resizeCompleted(PanelWidth, PanelHeight);
 	}
 }
-

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using BingoGame.Common.Configs;
+using BingoGame.Common.UI;
 using Microsoft.Xna.Framework;
 using Terraria;
 using Terraria.ModLoader;
@@ -10,10 +11,7 @@ namespace BingoGame.Common.Systems;
 [Autoload(Side = ModSide.Client)]
 public sealed class BingoUISystem : ModSystem
 {
-	private UserInterface _interface;
-	private BingoMenuState _menu;
-	private UserInterface _resultInterface;
-	private BingoResultState _result;
+	private BingoUIManager _uiManager;
 	private GameTime _lastUpdateTime;
 	private BingoGamePhase _lastObservedPhase;
 
@@ -23,25 +21,23 @@ public sealed class BingoUISystem : ModSystem
 	{
 		BingoClientConfig clientConfig = ModContent.GetInstance<BingoClientConfig>();
 		clientConfig.MigrateLegacyDraft(ModContent.GetInstance<BingoGameConfig>());
-		_interface = new UserInterface();
-		_menu = new BingoMenuState();
-		_menu.Activate();
-		_resultInterface = new UserInterface();
-		_result = new BingoResultState(HideResult);
-		_result.Activate();
-		_menu.EnsureConfigDefaults();
+		
+		// 初始化新的 UI 系统
+		BingoUIManager.CreateInstance();
+		_uiManager = BingoUIManager.Instance;
+		
 		_lastObservedPhase = BingoWorldSystem.Phase;
 	}
 
 	public override void OnWorldLoad()
 	{
-		HideAll(true);
+		_uiManager?.Hide();
 		_lastObservedPhase = BingoWorldSystem.Phase;
 	}
 
 	public override void OnWorldUnload()
 	{
-		HideAll(true);
+		_uiManager?.Hide();
 		_lastObservedPhase = BingoGamePhase.NotStarted;
 	}
 
@@ -49,37 +45,35 @@ public sealed class BingoUISystem : ModSystem
 	{
 		BingoNumericInput.ClearFocus();
 		BingoTextInput.ClearFocus(false);
-		_interface = null;
-		_menu = null;
-		_resultInterface = null;
-		_result = null;
+		_uiManager?.Dispose();
+		_uiManager = null;
 		_lastUpdateTime = null;
 	}
 
 	public override void UpdateUI(GameTime gameTime)
 	{
 		_lastUpdateTime = gameTime;
-		BingoUITheme.RefreshOpacity();
+		
 		if (Main.gameMenu)
 		{
-			HideAll(true);
+			_uiManager?.Hide();
 			return;
 		}
+		
 		if (_lastObservedPhase != BingoWorldSystem.Phase)
 		{
-			BingoGamePhase previousPhase = _lastObservedPhase;
 			_lastObservedPhase = BingoWorldSystem.Phase;
-			if (previousPhase == BingoGamePhase.InProgress && _lastObservedPhase == BingoGamePhase.Finished)
-				ShowResult();
+			if (_lastObservedPhase != BingoGamePhase.NotStarted)
+			{
+				_uiManager?.Show();
+			}
+			else
+			{
+				_uiManager?.Hide();
+			}
 		}
 
-		if (_interface?.CurrentState != null)
-		{
-			_menu.RefreshForWorldChanges();
-			_interface.Update(gameTime);
-		}
-		if (_resultInterface?.CurrentState != null)
-			_resultInterface.Update(gameTime);
+		_uiManager?.Update(gameTime);
 	}
 
 	public override void ModifyInterfaceLayers(List<GameInterfaceLayer> layers)
@@ -89,73 +83,33 @@ public sealed class BingoUISystem : ModSystem
 			return;
 
 		layers.Insert(mouseTextIndex, new LegacyGameInterfaceLayer(
-			"BingoGame: Menu",
+			"BingoGame: UI",
 			() =>
 			{
-				if (_lastUpdateTime != null && _interface?.CurrentState != null)
-					_interface.Draw(Main.spriteBatch, _lastUpdateTime);
-				if (_lastUpdateTime != null && _resultInterface?.CurrentState != null)
-					_resultInterface.Draw(Main.spriteBatch, _lastUpdateTime);
+				if (_lastUpdateTime != null && _uiManager != null)
+					_uiManager.Draw(_lastUpdateTime);
 				return true;
 			}, InterfaceScaleType.UI));
 	}
 
 	public static void Toggle()
 	{
-		BingoUISystem system = ModContent.GetInstance<BingoUISystem>();
-		if (system._interface?.CurrentState == null)
-			system.Show();
-		else
-			system.Hide(false);
+		BingoUIManager.Instance?.Toggle();
 	}
 
 	public static void SetValidationFailure(BingoValidationError error, int cellIndex)
 	{
-		BingoUISystem system = ModContent.GetInstance<BingoUISystem>();
-		system._menu?.SetValidationFailure(new BingoValidationFailure(error, cellIndex));
+		if (BingoUIManager.Instance?.Context?.ViewState != null)
+		{
+			BingoUIManager.Instance.Context.ViewState.ValidationFailure = new BingoValidationFailure(error, cellIndex);
+		}
 	}
 
 	internal static void SetInventoryActionFailure(BingoGame.InventoryActionError error)
 	{
-		BingoUISystem system = ModContent.GetInstance<BingoUISystem>();
-		system._menu?.SetInventoryActionFailure(error);
-	}
-
-	private void Show()
-	{
-		if (_interface == null || _menu == null || Main.gameMenu)
-			return;
-		_menu.Open();
-		_interface.SetState(_menu);
-	}
-
-	private void ShowResult()
-	{
-		if (_resultInterface == null || _result == null || Main.gameMenu || !BingoWorldSystem.HasBoard)
-			return;
-		_result.Add(BingoResultSnapshot.Capture());
-		if (_resultInterface.CurrentState == null)
-			_resultInterface.SetState(_result);
-	}
-
-	private void HideResult()
-	{
-		_resultInterface?.SetState(null);
-		_result?.Clear();
-	}
-
-	private void Hide(bool forced)
-	{
-		if (_interface?.CurrentState != null && _menu != null && !_menu.TrySavePersistentState(!forced))
-			return;
-		BingoNumericInput.ClearFocus();
-		BingoTextInput.ClearFocus(false);
-		_interface?.SetState(null);
-	}
-
-	private void HideAll(bool forced)
-	{
-		Hide(forced);
-		HideResult();
+		if (BingoUIManager.Instance?.Context?.ViewState != null)
+		{
+			BingoUIManager.Instance.Context.ViewState.InventoryActionError = error.ToString();
+		}
 	}
 }

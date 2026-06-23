@@ -1,8 +1,8 @@
 using System;
 using System.Linq;
-using BingoGame.Common.UI;
-using BingoGame.Common.UI.Inputs;
+using BingoGame.Common.UI.Components;
 using BingoGame.Common.UI.Layout;
+using BingoGame.Common.UI.Theme;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
@@ -10,8 +10,11 @@ using Terraria.GameContent.UI.Elements;
 using Terraria.GameInput;
 using Terraria.UI;
 
-namespace BingoGame.Common.Systems;
+namespace BingoGame.Common.UI.Inputs;
 
+/// <summary>
+/// 文本输入框
+/// </summary>
 internal sealed class BingoTextInput : UIPanel
 {
 	private static BingoTextInput _focused;
@@ -26,6 +29,9 @@ internal sealed class BingoTextInput : UIPanel
 	public static bool AnyFocused => _focused != null;
 	public bool IsInvalid { get; set; }
 
+	/// <summary>
+	/// 创建文本输入框
+	/// </summary>
 	public BingoTextInput(string hint, string value, Func<float> layoutScale, Action<string> changed,
 		Action<string> committed, int maxLength, Func<char, bool> allowedCharacter = null)
 	{
@@ -41,6 +47,9 @@ internal sealed class BingoTextInput : UIPanel
 		OnLeftClick += (_, _) => Focus();
 	}
 
+	/// <summary>
+	/// 设置输入框文本
+	/// </summary>
 	public void SetText(string value, bool notify = false)
 	{
 		string normalized = value ?? string.Empty;
@@ -56,6 +65,9 @@ internal sealed class BingoTextInput : UIPanel
 			_changed?.Invoke(_text);
 	}
 
+	/// <summary>
+	/// 清除焦点
+	/// </summary>
 	public static void ClearFocus(bool commit = true)
 	{
 		BingoTextInput focused = _focused;
@@ -78,7 +90,7 @@ internal sealed class BingoTextInput : UIPanel
 	protected override void DrawSelf(SpriteBatch spriteBatch)
 	{
 		Rectangle bounds = GetDimensions().ToRectangle();
-		BingoUITheme.ApplyInput(this, IsInvalid, _focused == this);
+		BingoTheme.ApplyInput(this, IsInvalid, _focused == this);
 		base.DrawSelf(spriteBatch);
 
 		if (_focused == this)
@@ -108,18 +120,23 @@ internal sealed class BingoTextInput : UIPanel
 			display = "…" + display[^79..];
 		Color color = _text.Length == 0 ? Color.Gray : Color.White;
 		float scale = BingoAdaptiveText.CalculateScale(display, bounds.Width - 8f, bounds.Height - 4f, 0.82f,
-			BingoTextRole.Compact, _layoutScale?.Invoke() ?? 1f);
+			BingoTextRole.Normal, _layoutScale?.Invoke() ?? 1f);
 		Utils.DrawBorderString(spriteBatch, display, bounds.Center.ToVector2(), color, scale, 0.5f, 0.5f);
 	}
 
 	private void Focus()
 	{
-		BingoNumericInput.ClearFocus();
+		// 清除数字输入框焦点
+		if (System.Type.GetType("BingoGame.Common.UI.Inputs.BingoNumericInput", false) is System.Type numInputType)
+		{
+			var clearFocusMethod = numInputType.GetMethod("ClearFocus", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+			clearFocusMethod?.Invoke(null, null);
+		}
+
 		if (_focused != null && _focused != this)
 			ClearFocus();
 		_focused = this;
 		Main.CurrentInputTextTakerOverride = this;
 		Main.clrInput();
 	}
-
 }
