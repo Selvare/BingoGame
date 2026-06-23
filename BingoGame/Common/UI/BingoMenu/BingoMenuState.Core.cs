@@ -29,6 +29,8 @@ internal sealed partial class BingoMenuState : UIState
 
 	private bool _editingInitialItemLists;
 
+	private bool _editingAdvancedSettings;
+
 	private int _editingInitialItemListIndex = -1;
 
 	private string _initialItemEditorText = string.Empty;
@@ -64,6 +66,7 @@ internal sealed partial class BingoMenuState : UIState
 		_editingWhitelists = false;
 		_editingWhitelistIndex = -1;
 		_editingInitialItemLists = false;
+		_editingAdvancedSettings = false;
 		_editingInitialItemListIndex = -1;
 		_inventoryActionError = string.Empty;
 		_failure = default;
@@ -89,6 +92,7 @@ internal sealed partial class BingoMenuState : UIState
 			_editingWhitelists = false;
 			_editingWhitelistIndex = -1;
 			_editingInitialItemLists = false;
+			_editingAdvancedSettings = false;
 			_editingInitialItemListIndex = -1;
 			_failure = default;
 			_confirmingStop = false;
@@ -154,6 +158,8 @@ internal sealed partial class BingoMenuState : UIState
 			BuildWhitelistList();
 		else if (_editingBoard)
 			BuildBoardEditor();
+		else if (_editingAdvancedSettings)
+			BuildAdvancedSettings();
 		else
 			BuildSettings();
 	}

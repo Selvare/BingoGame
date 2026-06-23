@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BingoGame.Common.Configs;
 using Microsoft.Xna.Framework;
 using Terraria;
@@ -49,7 +50,8 @@ public enum BingoValidationError : byte
 	InvalidWhitelist,
 	NotEnoughWhitelistItems,
 	InvalidInitialItems,
-	InvalidTimeLimit
+	InvalidTimeLimit,
+	InvalidAdvancedOptions
 }
 
 public readonly record struct BingoValidationFailure(BingoValidationError Error, int CellIndex);
@@ -65,7 +67,7 @@ public sealed record BingoContributionStanding(int Rank, byte Team, string Playe
 public sealed class BingoWorldSystem : ModSystem
 {
 	public const byte SinglePlayerTeam = 2;
-	private const int SaveVersion = 3;
+	private const int SaveVersion = 5;
 	private const long TicksPerSecond = 60;
 	private static readonly int[] EmptyInts = Array.Empty<int>();
 	private static readonly byte[] EmptyBytes = Array.Empty<byte>();
@@ -82,6 +84,15 @@ public sealed class BingoWorldSystem : ModSystem
 	public static long ElapsedTicks { get; private set; }
 	public static long TimeLimitTicks { get; private set; }
 	public static BingoFinishReason FinishReason { get; private set; }
+	public static bool LineProgressTiebreakEnabled { get; private set; } = true;
+	public static bool LineAutoDegradeEnabled { get; private set; } = true;
+	public static bool KillStealEnabled { get; private set; }
+	public static float KillStealChance { get; private set; }
+	public static bool RandomStartEnabled { get; private set; }
+	public static bool RandomStartTeamTogether { get; private set; }
+	public static bool ForcePvpEnabled { get; private set; }
+	public static bool FogOfWarEnabled { get; private set; }
+	public static int[] InitialItemTypes { get; private set; } = EmptyInts;
 	public static IReadOnlyList<BingoClaimRecord> Claims => _claims;
 	public static int StateRevision { get; private set; }
 
@@ -90,6 +101,8 @@ public sealed class BingoWorldSystem : ModSystem
 	private static long _nextConnectionOrder;
 	private static List<BingoClaimRecord> _claims = new();
 	private static ulong _clientSyncUpdateCount;
+	private static Dictionary<byte, int> _randomStartLeaders = new();
+	private static int _randomStartFollowerDelay;
 
 	public static bool HasBoard => BoardSize is >= 2 and <= 10
 		&& ItemTypes.Length == BoardSize * BoardSize
@@ -112,11 +125,22 @@ public sealed class BingoWorldSystem : ModSystem
 		ElapsedTicks = 0;
 		TimeLimitTicks = 0;
 		FinishReason = BingoFinishReason.None;
+		LineProgressTiebreakEnabled = true;
+		LineAutoDegradeEnabled = true;
+		KillStealEnabled = false;
+		KillStealChance = 0f;
+		RandomStartEnabled = false;
+		RandomStartTeamTogether = false;
+		ForcePvpEnabled = false;
+		FogOfWarEnabled = false;
+		InitialItemTypes = EmptyInts;
 		_claims = new List<BingoClaimRecord>();
 		_clientSyncUpdateCount = Main.GameUpdateCount;
 		_cellByItemType = new Dictionary<int, int>();
 		_connectionOrder = new long[Main.maxPlayers];
 		_nextConnectionOrder = 0;
+		_randomStartLeaders = new Dictionary<byte, int>();
+		_randomStartFollowerDelay = 0;
 		StateRevision++;
 	}
 
@@ -140,6 +164,7 @@ public sealed class BingoWorldSystem : ModSystem
 
 		if (ElapsedTicks < long.MaxValue)
 			ElapsedTicks++;
+		UpdateRandomStartFollowers();
 		if (TimeLimitTicks > 0 && ElapsedTicks >= TimeLimitTicks)
 		{
 			FinishForced(BingoFinishReason.TimeLimit);
@@ -167,6 +192,18 @@ public sealed class BingoWorldSystem : ModSystem
 		tag["ElapsedTicks"] = ElapsedTicks;
 		tag["TimeLimitTicks"] = TimeLimitTicks;
 		tag["FinishReason"] = (int)FinishReason;
+		tag["LineProgressTiebreakEnabled"] = LineProgressTiebreakEnabled;
+		tag["LineAutoDegradeEnabled"] = LineAutoDegradeEnabled;
+		tag["KillStealEnabled"] = KillStealEnabled;
+		tag["KillStealChance"] = KillStealChance;
+		tag["RandomStartEnabled"] = RandomStartEnabled;
+		tag["RandomStartTeamTogether"] = RandomStartTeamTogether;
+		tag["ForcePvpEnabled"] = ForcePvpEnabled;
+		tag["FogOfWarEnabled"] = FogOfWarEnabled;
+		List<ItemDefinition> initialDefinitions = new(InitialItemTypes.Length);
+		foreach (int itemType in InitialItemTypes)
+			initialDefinitions.Add(new ItemDefinition(itemType));
+		tag["InitialItemDefinitions"] = initialDefinitions;
 		List<TagCompound> claims = new(_claims.Count);
 		foreach (BingoClaimRecord claim in _claims)
 		{
@@ -239,6 +276,26 @@ public sealed class BingoWorldSystem : ModSystem
 			&& Enum.IsDefined(typeof(BingoFinishReason), (byte)savedFinishReason)
 			? (BingoFinishReason)savedFinishReason
 			: Phase == BingoGamePhase.Finished ? BingoFinishReason.Natural : BingoFinishReason.None;
+		LineProgressTiebreakEnabled = version < 5 || tag.GetBool("LineProgressTiebreakEnabled");
+		LineAutoDegradeEnabled = version < 5 || tag.GetBool("LineAutoDegradeEnabled");
+		KillStealEnabled = version >= 4 && tag.GetBool("KillStealEnabled");
+		KillStealChance = version >= 4 ? Math.Clamp(tag.GetFloat("KillStealChance"), 0f, 1f) : 0f;
+		RandomStartEnabled = version >= 4 && tag.GetBool("RandomStartEnabled");
+		RandomStartTeamTogether = version >= 4 && tag.GetBool("RandomStartTeamTogether");
+		ForcePvpEnabled = version >= 4 && tag.GetBool("ForcePvpEnabled");
+		FogOfWarEnabled = version >= 4 && tag.GetBool("FogOfWarEnabled");
+		if (version >= 4)
+		{
+			IList<ItemDefinition> initialDefinitions = tag.GetList<ItemDefinition>("InitialItemDefinitions");
+			List<int> initialTypes = new(initialDefinitions.Count);
+			foreach (ItemDefinition definition in initialDefinitions)
+			{
+				if (!definition.IsUnloaded && IsUsableItemId(definition.Type))
+					initialTypes.Add(definition.Type);
+			}
+			InitialItemTypes = initialTypes.ToArray();
+		}
+		else InitialItemTypes = EmptyInts;
 		_claims = new List<BingoClaimRecord>(count);
 		HashSet<int> loadedClaimItems = new();
 		if (version >= 3)
@@ -286,6 +343,17 @@ public sealed class BingoWorldSystem : ModSystem
 		writer.Write(ElapsedTicks);
 		writer.Write(TimeLimitTicks);
 		writer.Write((byte)FinishReason);
+		writer.Write(LineProgressTiebreakEnabled);
+		writer.Write(LineAutoDegradeEnabled);
+		writer.Write(KillStealEnabled);
+		writer.Write(KillStealChance);
+		writer.Write(RandomStartEnabled);
+		writer.Write(RandomStartTeamTogether);
+		writer.Write(ForcePvpEnabled);
+		writer.Write(FogOfWarEnabled);
+		writer.Write((ushort)Math.Min(InitialItemTypes.Length, ushort.MaxValue));
+		for (int i = 0; i < InitialItemTypes.Length && i < ushort.MaxValue; i++)
+			writer.Write(InitialItemTypes[i]);
 		writer.Write((ushort)ItemTypes.Length);
 		for (int i = 0; i < ItemTypes.Length; i++)
 		{
@@ -316,6 +384,18 @@ public sealed class BingoWorldSystem : ModSystem
 		long elapsedTicks = reader.ReadInt64();
 		long timeLimitTicks = reader.ReadInt64();
 		BingoFinishReason finishReason = (BingoFinishReason)reader.ReadByte();
+		bool lineProgressTiebreakEnabled = reader.ReadBoolean();
+		bool lineAutoDegradeEnabled = reader.ReadBoolean();
+		bool killStealEnabled = reader.ReadBoolean();
+		float killStealChance = reader.ReadSingle();
+		bool randomStartEnabled = reader.ReadBoolean();
+		bool randomStartTeamTogether = reader.ReadBoolean();
+		bool forcePvpEnabled = reader.ReadBoolean();
+		bool fogOfWarEnabled = reader.ReadBoolean();
+		int initialItemCount = reader.ReadUInt16();
+		int[] initialItemTypes = new int[initialItemCount];
+		for (int i = 0; i < initialItemCount; i++)
+			initialItemTypes[i] = reader.ReadInt32();
 		int count = reader.ReadUInt16();
 
 		bool valid = Enum.IsDefined(typeof(BingoGamePhase), phase)
@@ -323,6 +403,7 @@ public sealed class BingoWorldSystem : ModSystem
 			&& size is >= 2 and <= 10
 			&& Enum.IsDefined(typeof(BingoFinishReason), finishReason)
 			&& elapsedTicks >= 0 && timeLimitTicks >= 0
+			&& killStealChance is >= 0f and <= 1f
 			&& count == size * size;
 		if (!valid)
 		{
@@ -345,6 +426,21 @@ public sealed class BingoWorldSystem : ModSystem
 		ElapsedTicks = elapsedTicks;
 		TimeLimitTicks = timeLimitTicks;
 		FinishReason = finishReason;
+		LineProgressTiebreakEnabled = lineProgressTiebreakEnabled;
+		LineAutoDegradeEnabled = lineAutoDegradeEnabled;
+		KillStealEnabled = killStealEnabled;
+		KillStealChance = Math.Clamp(killStealChance, 0f, 1f);
+		RandomStartEnabled = randomStartEnabled;
+		RandomStartTeamTogether = randomStartTeamTogether;
+		ForcePvpEnabled = forcePvpEnabled;
+		FogOfWarEnabled = fogOfWarEnabled;
+		HashSet<int> sanitizedInitialItemTypes = new();
+		foreach (int itemType in initialItemTypes)
+		{
+			if (IsUsableItemId(itemType))
+				sanitizedInitialItemTypes.Add(itemType);
+		}
+		InitialItemTypes = sanitizedInitialItemTypes.ToArray();
 		ItemTypes = new int[count];
 		Owners = new byte[count];
 		for (int i = 0; i < count; i++)
@@ -376,7 +472,10 @@ public sealed class BingoWorldSystem : ModSystem
 
 	internal static bool TryStartGame(int requester, int size, BingoWinRule rule, IReadOnlyList<int> requestedTypes,
 		bool whitelistEnabled, IReadOnlyList<int> whitelistTypes, IReadOnlyList<int> initialItemTypes,
-		bool timeLimitEnabled, int timeLimitMinutes, int timeLimitSeconds, out BingoValidationFailure failure)
+		bool timeLimitEnabled, int timeLimitMinutes, int timeLimitSeconds, bool lineProgressTiebreakEnabled,
+		bool lineAutoDegradeEnabled, bool killStealEnabled, float killStealChance, bool randomStartEnabled,
+		bool randomStartTeamTogether, bool forcePvpEnabled, bool fogOfWarEnabled,
+		out BingoValidationFailure failure)
 	{
 		failure = default;
 		if (!IsPlayerHost(requester))
@@ -391,6 +490,8 @@ public sealed class BingoWorldSystem : ModSystem
 			return Fail(BingoValidationError.InvalidCellCount, -1, out failure);
 		if (!TryCalculateTimeLimit(timeLimitEnabled, timeLimitMinutes, timeLimitSeconds, out long timeLimitTicks))
 			return Fail(BingoValidationError.InvalidTimeLimit, -1, out failure);
+		if (killStealChance is < 0f or > 1f || float.IsNaN(killStealChance))
+			return Fail(BingoValidationError.InvalidAdvancedOptions, -1, out failure);
 
 		int[] prepared = new int[requestedTypes.Count];
 		HashSet<int> selected = new();
@@ -404,6 +505,13 @@ public sealed class BingoWorldSystem : ModSystem
 			if (!selected.Add(itemType))
 				return Fail(BingoValidationError.DuplicateItem, i, out failure);
 			prepared[i] = itemType;
+		}
+
+		HashSet<int> initialItemSnapshot = new();
+		foreach (int itemType in initialItemTypes)
+		{
+			if (IsUsableItemId(itemType))
+				initialItemSnapshot.Add(itemType);
 		}
 
 		HashSet<int> excludedInitialItems = new();
@@ -458,10 +566,20 @@ public sealed class BingoWorldSystem : ModSystem
 		Owners = new byte[prepared.Length];
 		ElapsedTicks = 0;
 		TimeLimitTicks = timeLimitTicks;
+		LineProgressTiebreakEnabled = rule == BingoWinRule.Line && lineProgressTiebreakEnabled;
+		LineAutoDegradeEnabled = rule == BingoWinRule.Line && lineAutoDegradeEnabled;
+		KillStealEnabled = killStealEnabled;
+		KillStealChance = Math.Clamp(killStealChance, 0f, 1f);
+		RandomStartEnabled = randomStartEnabled;
+		RandomStartTeamTogether = randomStartTeamTogether;
+		ForcePvpEnabled = forcePvpEnabled;
+		FogOfWarEnabled = fogOfWarEnabled;
+		InitialItemTypes = initialItemSnapshot.ToArray();
 		_claims = new List<BingoClaimRecord>(prepared.Length);
 		Phase = BingoGamePhase.InProgress;
 		ClearCompletionState();
 		RebuildLookup();
+		ScheduleRandomStart();
 		StateChanged();
 		return true;
 	}
@@ -640,6 +758,7 @@ public sealed class BingoWorldSystem : ModSystem
 		ElapsedTicks = 0;
 		TimeLimitTicks = 0;
 		_claims = new List<BingoClaimRecord>();
+		ClearAdvancedOptions();
 		ClearCompletionState();
 		RebuildLookup();
 		StateRevision++;
@@ -702,6 +821,21 @@ public sealed class BingoWorldSystem : ModSystem
 
 	internal static bool IsPlayerHost(int requester) => Main.netMode == NetmodeID.SinglePlayer
 		|| Main.netMode == NetmodeID.Server && requester == HostPlayerId && IsEligibleLocalHost(requester);
+
+	internal static bool CanKillStealDrop(int victimPlayerId, int killerPlayerId)
+	{
+		if (Main.netMode != NetmodeID.Server || Phase != BingoGamePhase.InProgress || !KillStealEnabled
+			|| KillStealChance <= 0f || victimPlayerId == killerPlayerId
+			|| victimPlayerId is < 0 or >= Main.maxPlayers || killerPlayerId is < 0 or >= Main.maxPlayers)
+			return false;
+
+		Player victim = Main.player[victimPlayerId];
+		Player killer = Main.player[killerPlayerId];
+		return victim.active && killer.active
+			&& TryGetEffectiveTeam(victim, out byte victimTeam)
+			&& TryGetEffectiveTeam(killer, out byte killerTeam)
+			&& victimTeam != killerTeam;
+	}
 
 	private static bool TryGetEffectiveTeam(Player player, out byte team)
 	{
@@ -794,7 +928,7 @@ public sealed class BingoWorldSystem : ModSystem
 			}
 
 			if (AllCellsClaimed())
-				FinishGame(BingoFinishReason.Natural, 0, true);
+				FinishLineDrawBreakTie(BingoFinishReason.Natural);
 			return;
 		}
 
@@ -839,7 +973,10 @@ public sealed class BingoWorldSystem : ModSystem
 				else
 					completedTeam = team;
 			}
-			FinishGame(reason, multiple ? (byte)0 : completedTeam, multiple || completedTeam == 0);
+			if (!multiple && completedTeam != 0)
+				FinishGame(reason, completedTeam, false);
+			else
+				FinishLineDrawBreakTie(reason);
 			return;
 		}
 
@@ -912,6 +1049,70 @@ public sealed class BingoWorldSystem : ModSystem
 		return mainDiagonal || antiDiagonal;
 	}
 
+	private static void FinishLineDrawBreakTie(BingoFinishReason reason)
+	{
+		if (!LineProgressTiebreakEnabled && !LineAutoDegradeEnabled)
+		{
+			FinishGame(reason, 0, true);
+			return;
+		}
+
+		int bestProgress = LineProgressTiebreakEnabled ? 0 : -1;
+		int bestScore = LineAutoDegradeEnabled ? 0 : -1;
+		byte bestTeam = 0;
+		bool tied = false;
+		for (byte team = 1; team <= 5; team++)
+		{
+			int progress = LineProgressTiebreakEnabled ? GetBestLineProgress(team) : -1;
+			int score = LineAutoDegradeEnabled ? GetTeamScore(team) : -1;
+			if (progress > bestProgress || progress == bestProgress && score > bestScore)
+			{
+				bestProgress = progress;
+				bestScore = score;
+				bestTeam = team;
+				tied = false;
+			}
+			else if (progress == bestProgress && score == bestScore
+				&& (!LineProgressTiebreakEnabled || progress > 0)
+				&& (!LineAutoDegradeEnabled || score > 0))
+				tied = true;
+		}
+
+		bool draw = tied || bestTeam == 0;
+		FinishGame(reason, draw ? (byte)0 : bestTeam, draw);
+	}
+
+	private static int GetBestLineProgress(byte team)
+	{
+		if (BoardSize <= 0 || Owners.Length != BoardSize * BoardSize)
+			return 0;
+
+		int best = 0;
+		for (int row = 0; row < BoardSize; row++)
+		{
+			int progress = 0;
+			for (int column = 0; column < BoardSize; column++)
+				progress += Owners[row * BoardSize + column] == team ? 1 : 0;
+			best = Math.Max(best, progress);
+		}
+		for (int column = 0; column < BoardSize; column++)
+		{
+			int progress = 0;
+			for (int row = 0; row < BoardSize; row++)
+				progress += Owners[row * BoardSize + column] == team ? 1 : 0;
+			best = Math.Max(best, progress);
+		}
+
+		int mainDiagonal = 0;
+		int antiDiagonal = 0;
+		for (int i = 0; i < BoardSize; i++)
+		{
+			mainDiagonal += Owners[i * BoardSize + i] == team ? 1 : 0;
+			antiDiagonal += Owners[i * BoardSize + BoardSize - 1 - i] == team ? 1 : 0;
+		}
+		return Math.Max(best, Math.Max(mainDiagonal, antiDiagonal));
+	}
+
 	private static void ResetGameCore()
 	{
 		Phase = BingoGamePhase.NotStarted;
@@ -919,8 +1120,86 @@ public sealed class BingoWorldSystem : ModSystem
 		ElapsedTicks = 0;
 		TimeLimitTicks = 0;
 		_claims = new List<BingoClaimRecord>();
+		ClearAdvancedOptions();
+		_randomStartLeaders.Clear();
+		_randomStartFollowerDelay = 0;
 		ClearCompletionState();
 		RebuildLookup();
+	}
+
+	private static void ScheduleRandomStart()
+	{
+		_randomStartLeaders.Clear();
+		_randomStartFollowerDelay = 0;
+		if (!RandomStartEnabled)
+			return;
+
+		if (Main.netMode == NetmodeID.SinglePlayer)
+		{
+			Main.LocalPlayer.TeleportationPotion();
+			return;
+		}
+		if (Main.netMode != NetmodeID.Server)
+			return;
+
+		if (!RandomStartTeamTogether)
+		{
+			for (int i = 0; i < Main.maxPlayers; i++)
+			{
+				if (Main.player[i].active)
+					global::BingoGame.BingoGame.SendApplyRandomTeleport(i);
+			}
+			return;
+		}
+
+		for (int i = 0; i < Main.maxPlayers; i++)
+		{
+			Player player = Main.player[i];
+			if (!player.active || !TryGetEffectiveTeam(player, out byte team) || _randomStartLeaders.ContainsKey(team))
+				continue;
+			_randomStartLeaders.Add(team, i);
+			global::BingoGame.BingoGame.SendApplyRandomTeleport(i);
+		}
+		if (_randomStartLeaders.Count > 0)
+			_randomStartFollowerDelay = 120;
+	}
+
+	private static void UpdateRandomStartFollowers()
+	{
+		if (Main.netMode != NetmodeID.Server || _randomStartFollowerDelay <= 0)
+			return;
+		_randomStartFollowerDelay--;
+		if (_randomStartFollowerDelay > 0)
+			return;
+
+		for (int i = 0; i < Main.maxPlayers; i++)
+		{
+			Player player = Main.player[i];
+			if (!player.active || !TryGetEffectiveTeam(player, out byte team)
+				|| !_randomStartLeaders.TryGetValue(team, out int leaderId) || leaderId == i)
+				continue;
+			Player leader = Main.player[leaderId];
+			if (!leader.active)
+				continue;
+			Vector2 destination = leader.position + new Vector2((i % 3 - 1) * 48f, 0f);
+			player.Teleport(destination, 0);
+			NetMessage.SendData(MessageID.TeleportEntity, number: 0, number2: i, number3: destination.X,
+				number4: destination.Y, number5: 0);
+		}
+		_randomStartLeaders.Clear();
+	}
+
+	private static void ClearAdvancedOptions()
+	{
+		LineProgressTiebreakEnabled = true;
+		LineAutoDegradeEnabled = true;
+		KillStealEnabled = false;
+		KillStealChance = 0f;
+		RandomStartEnabled = false;
+		RandomStartTeamTogether = false;
+		ForcePvpEnabled = false;
+		FogOfWarEnabled = false;
+		InitialItemTypes = EmptyInts;
 	}
 
 	private static void ClearCompletionState()

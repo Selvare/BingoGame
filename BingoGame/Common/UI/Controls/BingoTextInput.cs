@@ -39,6 +39,21 @@ internal sealed class BingoTextInput : UIPanel
 		OnLeftClick += (_, _) => Focus();
 	}
 
+	public void SetText(string value, bool notify = false)
+	{
+		string normalized = value ?? string.Empty;
+		if (normalized.Length > _maxLength)
+			normalized = normalized[.._maxLength];
+		if (_allowedCharacter != null)
+			normalized = new string(normalized.Where(_allowedCharacter).ToArray());
+		if (_text == normalized)
+			return;
+		_text = normalized;
+		IsInvalid = false;
+		if (notify)
+			_changed?.Invoke(_text);
+	}
+
 	public static void ClearFocus(bool commit = true)
 	{
 		BingoTextInput focused = _focused;

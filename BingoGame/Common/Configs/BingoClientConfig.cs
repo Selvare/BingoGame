@@ -27,6 +27,12 @@ public sealed class BingoClientConfig : ModConfig
 	[DefaultValue(430)]
 	public int SettingsHeight;
 
+	[DefaultValue(620)]
+	public int AdvancedSettingsWidth;
+
+	[DefaultValue(430)]
+	public int AdvancedSettingsHeight;
+
 	[DefaultValue(420)]
 	public int WaitingWidth;
 

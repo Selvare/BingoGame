@@ -1,8 +1,15 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using BingoGame.Common.Configs;
+using BingoGame.Common.Tools;
 using BingoGame.Common.UI;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Terraria;
+using Terraria.GameContent;
+using Terraria.GameContent.UI.Elements;
+using Terraria.ID;
 using Terraria.ModLoader;
 using Terraria.UI;
 
@@ -25,8 +32,9 @@ internal sealed partial class BingoMenuState
 
 	private void BuildSettings()
 	{
-		BingoResponsivePanel panel = CreateWindow(BingoWindowPage.Settings, 560f, 557f);
+		BingoResponsivePanel panel = CreateWindow(BingoWindowPage.Settings, 560f, 665f, 620f, 705f);
 		UIVerticalStack root = CreateRootStack(10f, 8f);
+		BingoGameConfig gameConfig = ModContent.GetInstance<BingoGameConfig>();
 		BingoAdaptiveText title = CreateText(panel, Text("UI.Title"), 0.5f, 0.5f, 1.25f, BingoTextRole.Title);
 		UIHorizontalStack sizeRow = new(12f);
 		BingoAdaptiveText sizeLabel = CreateText(panel, Text("UI.BoardSize"), 0f, 0.5f, 1f);
@@ -52,7 +60,17 @@ internal sealed partial class BingoMenuState
 		ruleRow.AddWeighted(ruleLabel, 4f, 120f);
 		ruleRow.AddWeighted(ruleControls, 6f, 180f);
 
-		BingoGameConfig gameConfig = ModContent.GetInstance<BingoGameConfig>();
+		UIVerticalStack lineRuleOptions = new(6f);
+		if (_draftRule == BingoWinRule.Line)
+		{
+			lineRuleOptions.AddFixed(CreateSubToggle(panel, Text("UI.LineProgressTiebreak"),
+				Text("UI.AdvancedTooltips.LineProgressTiebreak"), gameConfig.LineProgressTiebreakEnabled,
+				ToggleLineProgressTiebreak), 58f);
+			lineRuleOptions.AddFixed(CreateSubToggle(panel, Text("UI.LineAutoDegrade"),
+				Text("UI.AdvancedTooltips.LineAutoDegrade"), gameConfig.LineAutoDegradeEnabled,
+				ToggleLineAutoDegrade), 58f);
+		}
+
 		UIHorizontalStack timeLimitRow = new(12f);
 		BingoAdaptiveText timeLimitLabel = CreateText(panel, Text("UI.UseTimeLimit"), 0f, 0.5f, 1f);
 		UIHorizontalStack timeLimitControls = new(8f);
@@ -96,6 +114,7 @@ internal sealed partial class BingoMenuState
 		whitelistRow.AddWeighted(whitelistControls, 6f, 180f);
 
 		BingoButton configure = CreateButton(panel, Text("UI.ConfigureBoard"), OpenEditor);
+		BingoButton advanced = CreateButton(panel, Text("UI.AdvancedOptions"), OpenAdvancedSettings);
 		UIHorizontalStack inventoryActions = new(12f);
 		BingoButton giveInitialItems = CreateButton(panel, Text("UI.GiveInitialItems"), GiveInitialItems,
 			textRole: BingoTextRole.Compact);
@@ -123,10 +142,13 @@ internal sealed partial class BingoMenuState
 		root.AddFixed(title, 36f);
 		root.AddFixed(sizeRow, 46f);
 		root.AddFixed(ruleRow, 46f);
+		if (_draftRule == BingoWinRule.Line)
+			root.AddFixed(lineRuleOptions, 122f);
 		root.AddFixed(timeLimitRow, 46f);
 		root.AddFixed(whitelistRow, 46f);
 		root.AddFixed(configure, 46f);
 		root.AddFixed(inventoryActions, 46f);
+		root.AddFixed(advanced, 46f);
 		root.AddWeighted(new UIElement(), 1f);
 		root.AddFixed(hint, 22f);
 		if (failureValue.Length > 0)
@@ -134,6 +156,254 @@ internal sealed partial class BingoMenuState
 		root.AddFixed(footer, 48f);
 		panel.Append(root);
 		panel.Recalculate();
+	}
+
+	private void BuildAdvancedSettings()
+	{
+		BingoResponsivePanel panel = CreateWindow(BingoWindowPage.AdvancedSettings, 560f, 500f, 620f, 540f);
+		UIVerticalStack root = CreateRootStack(10f, 8f);
+		BingoGameConfig config = GetGameConfig();
+		BingoAdaptiveText title = CreateText(panel, Text("UI.AdvancedOptions"), 0.5f, 0.5f, 1.2f,
+			BingoTextRole.Title);
+
+		UIVerticalStack killStealGroup = CreateOptionGroup(panel, Text("UI.KillSteal"),
+			Text("UI.AdvancedTooltips.KillSteal"), config.KillStealEnabled, ToggleKillSteal);
+		if (config.KillStealEnabled)
+			killStealGroup.AddFixed(CreateChanceSubOption(panel, config), 74f);
+
+		UIVerticalStack randomStartGroup = CreateOptionGroup(panel, Text("UI.RandomStart"),
+			Text("UI.AdvancedTooltips.RandomStart"), config.RandomStartEnabled, ToggleRandomStart);
+		if (config.RandomStartEnabled)
+			randomStartGroup.AddFixed(CreateSubToggle(panel, Text("UI.RandomStartTeamTogether"),
+				Text("UI.AdvancedTooltips.RandomStartTeamTogether"), config.RandomStartTeamTogether,
+				ToggleRandomStartTeamTogether), 58f);
+
+		UIHorizontalStack forcePvpRow = CreateToggleRow(panel, Text("UI.ForcePvp"), config.ForcePvpEnabled,
+			ToggleForcePvp, Text("UI.AdvancedTooltips.ForcePvp"));
+		UIHorizontalStack fogOfWarRow = CreateToggleRow(panel, Text("UI.FogOfWar"), config.FogOfWarEnabled,
+			ToggleFogOfWar, Text("UI.AdvancedTooltips.FogOfWar"));
+
+		UIHorizontalStack footer = new(12f);
+		BingoButton back = CreateButton(panel, Text("UI.Back"), CloseAdvancedSettings);
+		footer.AddWeighted(back);
+
+		root.AddFixed(title, 36f);
+		root.AddFixed(killStealGroup, config.KillStealEnabled ? 132f : 52f);
+		root.AddFixed(randomStartGroup, config.RandomStartEnabled ? 116f : 52f);
+		root.AddFixed(forcePvpRow, 46f);
+		root.AddFixed(fogOfWarRow, 46f);
+		root.AddWeighted(new UIElement(), 1f);
+		root.AddFixed(footer, 46f);
+		panel.Append(root);
+		panel.Recalculate();
+	}
+
+	private UIVerticalStack CreateOptionGroup(BingoResponsivePanel panel, string label, string tooltip, bool enabled,
+		Action toggle)
+	{
+		UIVerticalStack group = new(8f);
+		group.AddFixed(CreateToggleRow(panel, label, enabled, toggle, tooltip), 46f);
+		return group;
+	}
+
+	private UIHorizontalStack CreateToggleRow(BingoResponsivePanel panel, string label, bool enabled, Action toggle,
+		string tooltip)
+	{
+		UIHorizontalStack row = new(12f);
+		UIHorizontalStack labelGroup = CreateLabelWithHelp(panel, label, tooltip);
+		BingoButton button = CreateButton(panel, Text(enabled ? "UI.Enabled" : "UI.Disabled"), toggle, enabled,
+			backgroundColor: enabled ? BingoUITheme.SuccessBackground : null);
+		row.AddWeighted(labelGroup, 4f, 150f);
+		row.AddWeighted(button, 6f, 180f);
+		return row;
+	}
+
+	private UIPanel CreateChanceSubOption(BingoResponsivePanel panel, BingoGameConfig config)
+	{
+		UIPanel subPanel = CreateSubOptionPanel();
+		UIVerticalStack stack = new(6f);
+		stack.Width.Set(0f, 1f);
+		stack.Height.Set(0f, 1f);
+		UIHorizontalStack controls = new(8f);
+		BingoTextInput input = null;
+		BingoFloatSlider slider = new(config.KillStealChance, value =>
+		{
+			SetKillStealChance(value);
+			input?.SetText(FormatChance(value));
+		});
+		input = CreateChanceInput(panel, config.KillStealChance, value =>
+		{
+			SetKillStealChance(value);
+			slider.SetValue(value);
+		});
+		controls.AddWeighted(slider, 7f, 180f);
+		controls.AddWeighted(input, 3f, 70f);
+		stack.AddFixed(CreateLabelWithHelp(panel, Text("UI.KillStealChance"),
+			Text("UI.AdvancedTooltips.KillStealChance")), 24f);
+		stack.AddFixed(controls, 34f);
+		subPanel.Append(stack);
+		return subPanel;
+	}
+
+	private UIPanel CreateSubToggle(BingoResponsivePanel panel, string label, string tooltip, bool enabled,
+		Action toggle)
+	{
+		UIPanel subPanel = CreateSubOptionPanel();
+		UIHorizontalStack row = new(10f);
+		row.Width.Set(0f, 1f);
+		row.Height.Set(0f, 1f);
+		row.AddWeighted(CreateLabelWithHelp(panel, label, tooltip), 5f, 160f);
+		row.AddWeighted(CreateButton(panel, Text(enabled ? "UI.Enabled" : "UI.Disabled"), toggle, enabled,
+			backgroundColor: enabled ? BingoUITheme.SuccessBackground : null), 4f, 110f);
+		subPanel.Append(row);
+		return subPanel;
+	}
+
+	private static UIPanel CreateSubOptionPanel()
+	{
+		UIPanel panel = new();
+		panel.SetPadding(8f);
+		panel.BackgroundColor = BingoUITheme.WithOpacity(new Color(38, 52, 96));
+		panel.BorderColor = BingoUITheme.WithFullOpacity(new Color(116, 150, 230));
+		return panel;
+	}
+
+	private UIHorizontalStack CreateLabelWithHelp(BingoResponsivePanel panel, string label, string tooltip)
+	{
+		UIHorizontalStack group = new(6f);
+		group.AddWeighted(CreateText(panel, label, 0f, 0.5f, 1f), 1f, 90f);
+		group.AddFixed(new BingoHelpBox(tooltip, () => panel.LayoutScale), 28f);
+		return group;
+	}
+
+	private static BingoTextInput CreateChanceInput(BingoResponsivePanel panel, float value, Action<float> changed)
+	{
+		string text = FormatChance(value);
+		return new BingoTextInput(Text("UI.ChanceHint"), text, () => panel.LayoutScale,
+			input =>
+			{
+				if (float.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
+					changed(Math.Clamp(parsed, 0f, 1f));
+			}, null, 5, character => char.IsDigit(character) || character == '.');
+	}
+
+	private static string FormatChance(float value) =>
+		Math.Clamp(value, 0f, 1f).ToString("0.##", CultureInfo.InvariantCulture);
+
+	private sealed class BingoHelpBox : UIPanel
+	{
+		private readonly string _tooltip;
+		private readonly Func<float> _layoutScale;
+		private readonly Item _hoverItem = new();
+
+		public BingoHelpBox(string tooltip, Func<float> layoutScale)
+		{
+			_tooltip = tooltip ?? string.Empty;
+			_layoutScale = layoutScale;
+			_hoverItem.SetDefaults(ItemID.Sign);
+			_hoverItem.stack = 1;
+			SetPadding(0f);
+			OverflowHidden = true;
+			BackgroundColor = BingoUITheme.WithOpacity(BingoUITheme.InputBackground);
+			BorderColor = BingoUITheme.WithFullOpacity(BingoUITheme.InputBorder);
+		}
+
+		public override void Update(GameTime gameTime)
+		{
+			base.Update(gameTime);
+			if (!IsMouseHovering)
+				return;
+			Main.LocalPlayer.mouseInterface = true;
+		}
+
+		protected override void DrawSelf(SpriteBatch spriteBatch)
+		{
+			BackgroundColor = BingoUITheme.WithOpacity(IsMouseHovering
+				? Color.Lerp(BingoUITheme.InputBackground, Color.White, 0.16f)
+				: BingoUITheme.InputBackground);
+			BorderColor = BingoUITheme.WithFullOpacity(IsMouseHovering
+				? BingoUITheme.InputFocusedBorder
+				: BingoUITheme.InputBorder);
+			base.DrawSelf(spriteBatch);
+			Rectangle bounds = GetDimensions().ToRectangle();
+			float scale = BingoAdaptiveText.CalculateScale("?", bounds.Width - 4f, bounds.Height - 4f, 0.9f,
+				BingoTextRole.Compact, _layoutScale?.Invoke() ?? 1f);
+			Utils.DrawBorderString(spriteBatch, "?", bounds.Center.ToVector2(), Color.White, scale, 0.5f, 0.5f);
+			if (bounds.Contains(Main.MouseScreen.ToPoint()) && _tooltip.Length > 0)
+				BingoHoverTooltipGlobalItem.Show(_hoverItem, Text("UI.AdvancedTooltipTitle"), _tooltip,
+					Color.LightGray);
+		}
+	}
+
+	private sealed class BingoFloatSlider : UIPanel
+	{
+		private readonly Action<float> _changed;
+		private bool _dragging;
+		private float _value;
+
+		public BingoFloatSlider(float value, Action<float> changed)
+		{
+			_changed = changed;
+			_value = Math.Clamp(value, 0f, 1f);
+			SetPadding(0f);
+			OverflowHidden = true;
+			OnLeftMouseDown += (_, _) => BeginDrag();
+			OnLeftMouseUp += (_, _) => _dragging = false;
+		}
+
+		public void SetValue(float value)
+		{
+			_value = Math.Clamp(value, 0f, 1f);
+		}
+
+		public override void Update(GameTime gameTime)
+		{
+			base.Update(gameTime);
+			if (IsMouseHovering)
+				Main.LocalPlayer.mouseInterface = true;
+			if (_dragging)
+			{
+				if (!Main.mouseLeft)
+				{
+					_dragging = false;
+					return;
+				}
+				SetFromMouse();
+			}
+		}
+
+		protected override void DrawSelf(SpriteBatch spriteBatch)
+		{
+			BingoUITheme.ApplyInput(this, false, _dragging || IsMouseHovering);
+			base.DrawSelf(spriteBatch);
+			Rectangle bounds = GetDimensions().ToRectangle();
+			Texture2D pixel = TextureAssets.MagicPixel.Value;
+			Rectangle track = new(bounds.X + 8, bounds.Center.Y - 2, Math.Max(1, bounds.Width - 16), 4);
+			spriteBatch.Draw(pixel, track, new Color(30, 35, 55, 220));
+			Rectangle fill = new(track.X, track.Y, (int)MathF.Round(track.Width * _value), track.Height);
+			spriteBatch.Draw(pixel, fill, new Color(130, 210, 255, 240));
+			int knobX = track.X + (int)MathF.Round(track.Width * _value);
+			Rectangle knob = new(knobX - 4, bounds.Center.Y - 9, 8, 18);
+			spriteBatch.Draw(pixel, knob, Color.White);
+		}
+
+		private void BeginDrag()
+		{
+			BingoTextInput.ClearFocus();
+			BingoNumericInput.ClearFocus();
+			_dragging = true;
+			SetFromMouse();
+		}
+
+		private void SetFromMouse()
+		{
+			Rectangle bounds = GetDimensions().ToRectangle();
+			float next = Math.Clamp((Main.mouseX - (bounds.X + 8f)) / Math.Max(1f, bounds.Width - 16f), 0f, 1f);
+			if (Math.Abs(next - _value) < 0.001f)
+				return;
+			_value = next;
+			_changed(_value);
+		}
 	}
 
 	private void ResizeDraft(int newSize)
@@ -156,6 +426,52 @@ internal sealed partial class BingoMenuState
 		_draftRule = rule;
 		_failure = default;
 		Rebuild();
+	}
+
+	private void OpenAdvancedSettings()
+	{
+		BingoTextInput.ClearFocus();
+		_editingAdvancedSettings = true;
+		Rebuild();
+	}
+
+	private void CloseAdvancedSettings()
+	{
+		BingoTextInput.ClearFocus();
+		GetGameConfig().SaveChanges();
+		_editingAdvancedSettings = false;
+		Rebuild();
+	}
+
+	private void ToggleKillSteal() => ToggleAdvancedFlag(config => config.KillStealEnabled = !config.KillStealEnabled);
+
+	private void ToggleRandomStart() => ToggleAdvancedFlag(config => config.RandomStartEnabled = !config.RandomStartEnabled);
+
+	private void ToggleRandomStartTeamTogether()
+		=> ToggleAdvancedFlag(config => config.RandomStartTeamTogether = !config.RandomStartTeamTogether);
+
+	private void ToggleForcePvp() => ToggleAdvancedFlag(config => config.ForcePvpEnabled = !config.ForcePvpEnabled);
+
+	private void ToggleFogOfWar() => ToggleAdvancedFlag(config => config.FogOfWarEnabled = !config.FogOfWarEnabled);
+
+	private void ToggleLineProgressTiebreak()
+		=> ToggleAdvancedFlag(config => config.LineProgressTiebreakEnabled = !config.LineProgressTiebreakEnabled);
+
+	private void ToggleLineAutoDegrade()
+		=> ToggleAdvancedFlag(config => config.LineAutoDegradeEnabled = !config.LineAutoDegradeEnabled);
+
+	private void ToggleAdvancedFlag(Action<BingoGameConfig> toggle)
+	{
+		BingoTextInput.ClearFocus();
+		BingoGameConfig config = GetGameConfig();
+		toggle(config);
+		config.SaveChanges();
+		Rebuild();
+	}
+
+	private void SetKillStealChance(float value)
+	{
+		GetGameConfig().KillStealChance = Math.Clamp(value, 0f, 1f);
 	}
 
 	private void ToggleWhitelist()
@@ -241,6 +557,8 @@ internal sealed partial class BingoMenuState
 			?? Array.Empty<int>();
 		BingoGame.RequestStart(_draftSize, _draftRule, (int[])_draftItems.Clone(), config.WhitelistEnabled,
 			whitelistTypes, initialItemTypes, config.TimeLimitEnabled, config.TimeLimitMinutes,
-			config.TimeLimitSeconds);
+			config.TimeLimitSeconds, config.LineProgressTiebreakEnabled, config.LineAutoDegradeEnabled,
+			config.KillStealEnabled, config.KillStealChance, config.RandomStartEnabled,
+			config.RandomStartTeamTogether, config.ForcePvpEnabled, config.FogOfWarEnabled);
 	}
 }

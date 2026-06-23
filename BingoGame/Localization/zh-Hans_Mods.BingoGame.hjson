@@ -6,10 +6,21 @@ UI: {
 	BoardSize: 棋盘行列数
 	WinRule: 获胜规则
 	UseTimeLimit: 是否限时
+	AdvancedOptions: 高级选项
+	AdvancedTooltipTitle: 功能说明
+	KillSteal: 击杀夺取
+	KillStealChance: 夺取概率
+	ChanceHint: 0~1
+	RandomStart: 开局随机
+	RandomStartTeamTogether: 同队跟随
+	ForcePvp: PVP 模式
+	FogOfWar: 战争迷雾
 	Minutes: 分钟
 	Seconds: 秒
 	RuleLine: 连线
 	RuleMajority: 多数占领
+	LineProgressTiebreak: 连线判定
+	LineAutoDegrade: 自动退化
 	ConfigureBoard: 配置棋盘物品
 	GiveInitialItems: 提供初始物品
 	EditInitialItems: 编辑初始物品
@@ -87,6 +98,7 @@ UI: {
 		NotEnoughWhitelistItems: 启用白名单中的不同合法物品数量少于棋盘格子数量。
 		InvalidInitialItems: 启用的初始物品列表包含无效或重复物品。
 		InvalidTimeLimit: 启用限时时，分钟不能为负数、秒必须为 0 到 59，且总时长不能为 0。
+		InvalidAdvancedOptions: 高级选项配置无效。
 	}
 
 	WhitelistErrors: {
@@ -119,6 +131,17 @@ UI: {
 	InventoryActionErrors: {
 		NotHost: 只有房主可以执行此操作。
 		InvalidItems: 初始物品列表包含无效内容。
+	}
+
+	AdvancedTooltips: {
+		KillSteal: 玩家被其他队伍玩家 PVP 击杀时，被击杀者有概率掉落非初始物品。
+		KillStealChance: 玩家的非初始物品独立按此概率判定是否掉落，范围为 0 到 1。
+		RandomStart: 开局时所有玩家会被随机传送到地图某处。
+		RandomStartTeamTogether: 相同队伍的玩家会随机到相同的落点。
+		ForcePvp: 对局进行中，所有玩家会被强制设为 PVP 。
+		FogOfWar: 地图将隐藏非相同队伍的玩家图标和 BOSS 图标。
+		LineProgressTiebreak: 结算平局时，优先比较各队在行、列、对角线中的最大连线进度。
+		LineAutoDegrade: 连线进度仍无法决出胜负时，退化为比较各队总得分。
 	}
 }
 
@@ -159,6 +182,16 @@ Configs: {
 
 		SettingsHeight: {
 			Label: 设置窗体高度
+			// Tooltip: ""
+		}
+
+		AdvancedSettingsWidth: {
+			Label: 高级选项窗体宽度
+			// Tooltip: ""
+		}
+
+		AdvancedSettingsHeight: {
+			Label: 高级选项窗体高度
 			// Tooltip: ""
 		}
 
@@ -261,6 +294,16 @@ Configs: {
 			Tooltip: 关闭 BINGO 窗体时保存。0 表示由服务器随机填充的格子。
 		}
 
+		LineProgressTiebreakEnabled: {
+			Label: 启用连线判定
+			Tooltip: 连线规则结算平局时，优先比较各队最大连线进度。
+		}
+
+		LineAutoDegradeEnabled: {
+			Label: 启用自动退化
+			Tooltip: 连线进度仍相同时，继续比较总得分。
+		}
+
 		WhitelistEnabled: {
 			Label: 启用白名单
 			Tooltip: 启用后，随机格子只会从已启用白名单中选择物品。
@@ -286,6 +329,36 @@ Configs: {
 			Tooltip: 必须为 0 到 59。
 		}
 
+		KillStealEnabled: {
+			Label: 启用击杀夺取
+			Tooltip: 启用后，不同队伍玩家 PVP 击杀时可使被击杀者掉落非初始物品。
+		}
+
+		KillStealChance: {
+			Label: 击杀夺取概率
+			Tooltip: 每个符合条件的物品独立判定，范围 0 到 1。
+		}
+
+		RandomStartEnabled: {
+			Label: 启用开局随机
+			Tooltip: 启用后，开局时玩家会随机传送。
+		}
+
+		RandomStartTeamTogether: {
+			Label: 同队跟随随机
+			Tooltip: 启用后，同队玩家会跟随队内首个在线玩家的随机落点。
+		}
+
+		ForcePvpEnabled: {
+			Label: 启用 PVP 模式
+			Tooltip: 启用后，对局进行中玩家会被强制设为 PVP。
+		}
+
+		FogOfWarEnabled: {
+			Label: 启用战争迷雾
+			Tooltip: 启用后，地图不显示玩家头像和 BOSS 图标。
+		}
+
 		InitialItemLists: {
 			Label: 初始物品列表
 			Tooltip: 可在 BINGO 游戏设置内使用初始物品编辑器维护。
@@ -305,6 +378,11 @@ Configs: {
 
 		ItemTypes: {
 			Label: 物品 ID
+			// Tooltip: ""
+		}
+
+		RawText: {
+			Label: 原始输入文本
 			// Tooltip: ""
 		}
 

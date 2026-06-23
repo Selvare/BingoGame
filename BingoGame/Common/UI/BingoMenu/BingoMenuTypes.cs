@@ -17,6 +17,7 @@ internal readonly record struct BingoEditorSaveResult(BingoEditorSaveStatus Stat
 internal enum BingoWindowPage
 {
 	Settings,
+	AdvancedSettings,
 	Waiting,
 	Editor,
 	Game,

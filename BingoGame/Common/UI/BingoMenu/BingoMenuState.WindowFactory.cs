@@ -47,6 +47,8 @@ internal sealed partial class BingoMenuState
 		return page switch
 		{
 			BingoWindowPage.Settings => new Vector2(config.SettingsWidth, config.SettingsHeight),
+			BingoWindowPage.AdvancedSettings => new Vector2(config.AdvancedSettingsWidth,
+				config.AdvancedSettingsHeight),
 			BingoWindowPage.Waiting => new Vector2(config.WaitingWidth, config.WaitingHeight),
 			BingoWindowPage.Editor => new Vector2(config.EditorWidth, config.EditorHeight),
 			BingoWindowPage.Game => new Vector2(config.GameWidth, config.GameHeight),
@@ -68,6 +70,10 @@ internal sealed partial class BingoMenuState
 			case BingoWindowPage.Settings:
 				config.SettingsWidth = roundedWidth;
 				config.SettingsHeight = roundedHeight;
+				break;
+			case BingoWindowPage.AdvancedSettings:
+				config.AdvancedSettingsWidth = roundedWidth;
+				config.AdvancedSettingsHeight = roundedHeight;
 				break;
 			case BingoWindowPage.Waiting:
 				config.WaitingWidth = roundedWidth;

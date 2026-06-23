@@ -170,7 +170,10 @@ internal sealed partial class BingoMenuState
 		if (index < 0 || index >= config.Whitelists.Count)
 			return;
 		_editingWhitelistIndex = index;
-		_whitelistEditorText = string.Join(",", config.Whitelists[index].ItemTypes);
+		BingoWhitelistEntry entry = config.Whitelists[index];
+		_whitelistEditorText = string.IsNullOrWhiteSpace(entry.RawText)
+			? string.Join(",", entry.ItemTypes)
+			: entry.RawText;
 		_whitelistEditorResult = default;
 		Rebuild();
 	}
@@ -204,6 +207,7 @@ internal sealed partial class BingoMenuState
 		if (_editingWhitelistIndex < 0 || _editingWhitelistIndex >= config.Whitelists.Count)
 			return _whitelistEditorResult = SaveFailure(Text("UI.SaveStatus.Unavailable"));
 		config.Whitelists[_editingWhitelistIndex].ItemTypes = itemTypes;
+		config.Whitelists[_editingWhitelistIndex].RawText = _whitelistEditorText ?? string.Empty;
 		config.SaveChanges();
 		return _whitelistEditorResult = result;
 	}
@@ -304,4 +308,3 @@ internal sealed partial class BingoMenuState
 		return true;
 	}
 }
-

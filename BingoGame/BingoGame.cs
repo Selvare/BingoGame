@@ -21,7 +21,10 @@ public sealed class BingoGame : Mod
 		ApplyGiveInitialItems,
 		RequestClearPlayerItems,
 		ApplyClearPlayerItems,
-		InventoryActionRejected
+		InventoryActionRejected,
+		RequestKillStealDrop,
+		ApplyKillStealDrop,
+		ApplyRandomTeleport
 	}
 
 	internal enum InventoryActionError : byte
@@ -75,6 +78,15 @@ public sealed class BingoGame : Mod
 			case PacketType.InventoryActionRejected when Main.netMode == NetmodeID.MultiplayerClient:
 				BingoUISystem.SetInventoryActionFailure((InventoryActionError)reader.ReadByte());
 				break;
+			case PacketType.RequestKillStealDrop when Main.netMode == NetmodeID.Server:
+				ReceiveKillStealDropRequest(reader, whoAmI);
+				break;
+			case PacketType.ApplyKillStealDrop when Main.netMode == NetmodeID.MultiplayerClient:
+				ApplyKillStealDrop();
+				break;
+			case PacketType.ApplyRandomTeleport when Main.netMode == NetmodeID.MultiplayerClient:
+				RequestLocalRandomTeleport();
+				break;
 			default:
 				Logger.Warn($"Ignored invalid BINGO packet {type} from {whoAmI}.");
 				break;
@@ -83,12 +95,16 @@ public sealed class BingoGame : Mod
 
 	internal static void RequestStart(int size, BingoWinRule rule, int[] itemTypes, bool whitelistEnabled,
 		int[] whitelistTypes, int[] initialItemTypes, bool timeLimitEnabled, int timeLimitMinutes,
-		int timeLimitSeconds)
+		int timeLimitSeconds, bool lineProgressTiebreakEnabled, bool lineAutoDegradeEnabled,
+		bool killStealEnabled, float killStealChance, bool randomStartEnabled, bool randomStartTeamTogether,
+		bool forcePvpEnabled, bool fogOfWarEnabled)
 	{
 		if (Main.netMode == NetmodeID.SinglePlayer)
 		{
 			if (!BingoWorldSystem.TryStartGame(Main.myPlayer, size, rule, itemTypes, whitelistEnabled, whitelistTypes,
 				initialItemTypes, timeLimitEnabled, timeLimitMinutes, timeLimitSeconds,
+				lineProgressTiebreakEnabled, lineAutoDegradeEnabled, killStealEnabled, killStealChance,
+				randomStartEnabled, randomStartTeamTogether, forcePvpEnabled, fogOfWarEnabled,
 				out BingoValidationFailure failure))
 				BingoUISystem.SetValidationFailure(failure.Error, failure.CellIndex);
 			return;
@@ -111,6 +127,14 @@ public sealed class BingoGame : Mod
 		packet.Write(timeLimitEnabled);
 		packet.Write(timeLimitMinutes);
 		packet.Write(timeLimitSeconds);
+		packet.Write(lineProgressTiebreakEnabled);
+		packet.Write(lineAutoDegradeEnabled);
+		packet.Write(killStealEnabled);
+		packet.Write(killStealChance);
+		packet.Write(randomStartEnabled);
+		packet.Write(randomStartTeamTogether);
+		packet.Write(forcePvpEnabled);
+		packet.Write(fogOfWarEnabled);
 		packet.Write((ushort)itemTypes.Length);
 		foreach (int itemType in itemTypes)
 			packet.Write(itemType);
@@ -173,6 +197,31 @@ public sealed class BingoGame : Mod
 		packet.Send();
 	}
 
+	internal static void RequestKillStealDrop(int killerPlayerId)
+	{
+		if (Main.netMode == NetmodeID.MultiplayerClient)
+		{
+			ModPacket packet = ModContent.GetInstance<BingoGame>().GetPacket();
+			packet.Write((byte)PacketType.RequestKillStealDrop);
+			packet.Write((byte)Math.Clamp(killerPlayerId, 0, Main.maxPlayers - 1));
+			packet.Send();
+			return;
+		}
+
+		if (Main.netMode == NetmodeID.SinglePlayer)
+			ApplyKillStealDrop();
+	}
+
+	internal static void SendApplyRandomTeleport(int toWho)
+	{
+		if (Main.netMode != NetmodeID.Server)
+			return;
+
+		ModPacket packet = ModContent.GetInstance<BingoGame>().GetPacket();
+		packet.Write((byte)PacketType.ApplyRandomTeleport);
+		packet.Send(toWho);
+	}
+
 	private static void ReceiveStartRequest(BinaryReader reader, int whoAmI)
 	{
 		int size = reader.ReadByte();
@@ -180,6 +229,14 @@ public sealed class BingoGame : Mod
 		bool timeLimitEnabled = reader.ReadBoolean();
 		int timeLimitMinutes = reader.ReadInt32();
 		int timeLimitSeconds = reader.ReadInt32();
+		bool lineProgressTiebreakEnabled = reader.ReadBoolean();
+		bool lineAutoDegradeEnabled = reader.ReadBoolean();
+		bool killStealEnabled = reader.ReadBoolean();
+		float killStealChance = reader.ReadSingle();
+		bool randomStartEnabled = reader.ReadBoolean();
+		bool randomStartTeamTogether = reader.ReadBoolean();
+		bool forcePvpEnabled = reader.ReadBoolean();
+		bool fogOfWarEnabled = reader.ReadBoolean();
 		int count = reader.ReadUInt16();
 		if (count > 100)
 		{
@@ -213,6 +270,8 @@ public sealed class BingoGame : Mod
 
 		if (!BingoWorldSystem.TryStartGame(whoAmI, size, rule, itemTypes, whitelistEnabled, whitelistTypes,
 			initialItemTypes, timeLimitEnabled, timeLimitMinutes, timeLimitSeconds,
+			lineProgressTiebreakEnabled, lineAutoDegradeEnabled, killStealEnabled, killStealChance,
+			randomStartEnabled, randomStartTeamTogether, forcePvpEnabled, fogOfWarEnabled,
 			out BingoValidationFailure failure))
 			SendStartRejected(whoAmI, failure);
 	}
@@ -259,6 +318,17 @@ public sealed class BingoGame : Mod
 		packet.Write((byte)PacketType.ApplyClearPlayerItems);
 		packet.Send();
 		BingoWorldSystem.SetPlayersHaveInitialItems(false);
+	}
+
+	private static void ReceiveKillStealDropRequest(BinaryReader reader, int whoAmI)
+	{
+		int killerPlayerId = reader.ReadByte();
+		if (!BingoWorldSystem.CanKillStealDrop(whoAmI, killerPlayerId))
+			return;
+
+		ModPacket packet = ModContent.GetInstance<BingoGame>().GetPacket();
+		packet.Write((byte)PacketType.ApplyKillStealDrop);
+		packet.Send(whoAmI);
 	}
 
 	private static List<BingoInitialItemStack> ReadInitialItems(BinaryReader reader)
@@ -364,6 +434,49 @@ public sealed class BingoGame : Mod
 		SyncVanillaSlots(player, player.miscEquips, 89);
 		SyncVanillaSlots(player, player.miscDyes, 94);
 		return true;
+	}
+
+	private static void ApplyKillStealDrop()
+	{
+		if (Main.myPlayer is < 0 or >= Main.maxPlayers || !BingoWorldSystem.KillStealEnabled
+			|| BingoWorldSystem.KillStealChance <= 0f)
+			return;
+
+		Player player = Main.LocalPlayer;
+		HashSet<int> initialItemTypes = new(BingoWorldSystem.InitialItemTypes);
+		IEntitySource source = player.GetSource_FromThis("BingoKillSteal");
+		DropEligibleItems(player, player.inventory, 0, initialItemTypes, source);
+		DropEligibleItems(player, player.armor, 59, initialItemTypes, source);
+		DropEligibleItems(player, player.miscEquips, 89, initialItemTypes, source);
+	}
+
+	private static void DropEligibleItems(Player player, Item[] items, int syncOffset, HashSet<int> initialItemTypes,
+		IEntitySource source)
+	{
+		for (int slot = 0; slot < items.Length; slot++)
+		{
+			Item item = items[slot];
+			if (item.IsAir || initialItemTypes.Contains(item.type)
+				|| Main.rand.NextFloat() > BingoWorldSystem.KillStealChance)
+				continue;
+
+			Item dropped = item.Clone();
+			player.QuickSpawnItem(source, dropped, dropped.stack);
+			item.TurnToAir();
+			item.NetStateChanged();
+			if (Main.netMode == NetmodeID.MultiplayerClient)
+				NetMessage.SendData(MessageID.SyncEquipment, number: player.whoAmI, number2: syncOffset + slot);
+		}
+	}
+
+	private static void RequestLocalRandomTeleport()
+	{
+		if (Main.myPlayer is < 0 or >= Main.maxPlayers)
+			return;
+		if (Main.netMode == NetmodeID.MultiplayerClient)
+			NetMessage.SendData(MessageID.RequestTeleportationByServer, number: 0);
+		else
+			Main.LocalPlayer.TeleportationPotion();
 	}
 
 	private static void ClearItems(Item[] items)

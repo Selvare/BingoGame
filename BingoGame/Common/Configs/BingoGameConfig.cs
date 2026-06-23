@@ -11,6 +11,12 @@ public sealed class BingoGameConfig : ModConfig
 	[DefaultValue(BingoWinRule.Line)]
 	public BingoWinRule DraftWinRule;
 
+	[DefaultValue(true)]
+	public bool LineProgressTiebreakEnabled = true;
+
+	[DefaultValue(true)]
+	public bool LineAutoDegradeEnabled = true;
+
 	public List<int> DraftItemTypes = new();
 
 	[DefaultValue(false)]
@@ -25,6 +31,27 @@ public sealed class BingoGameConfig : ModConfig
 	[DefaultValue(0)]
 	[Range(0, 59)]
 	public int TimeLimitSeconds;
+
+	[DefaultValue(false)]
+	public bool KillStealEnabled;
+
+	[DefaultValue(0.25f)]
+	[Range(0f, 1f)]
+	[Increment(0.05f)]
+	[Slider]
+	public float KillStealChance;
+
+	[DefaultValue(false)]
+	public bool RandomStartEnabled;
+
+	[DefaultValue(false)]
+	public bool RandomStartTeamTogether;
+
+	[DefaultValue(false)]
+	public bool ForcePvpEnabled;
+
+	[DefaultValue(false)]
+	public bool FogOfWarEnabled;
 
 	public List<BingoWhitelistEntry> Whitelists = new();
 
@@ -85,11 +112,15 @@ public sealed class BingoWhitelistEntry
 	[LabelKey("$Mods.BingoGame.Configs.BingoWhitelistEntry.ItemTypes.Label")]
 	public List<int> ItemTypes = new();
 
+	[LabelKey("$Mods.BingoGame.Configs.BingoWhitelistEntry.RawText.Label")]
+	public string RawText = string.Empty;
+
 	internal BingoWhitelistEntry Clone() => new()
 	{
 		Name = Name ?? string.Empty,
 		Enabled = Enabled,
-		ItemTypes = new List<int>(ItemTypes ?? new List<int>())
+		ItemTypes = new List<int>(ItemTypes ?? new List<int>()),
+		RawText = RawText ?? string.Empty
 	};
 }
 
