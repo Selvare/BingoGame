@@ -1,4 +1,4 @@
 displayName = Bingo Game
 author = Selvare, Mysterious
-version = 1.2.0
+version = 1.2.1
 buildVersion = 0.12.4

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BingoGame.Content.Buffs;
 using Terraria;
 using Terraria.Map;
 using Terraria.ModLoader;
@@ -29,5 +30,24 @@ public sealed class BingoFogOfWarGlobalNPC : GlobalNPC
 	{
 		if (BingoWorldSystem.FogOfWarEnabled && BingoWorldSystem.Phase == BingoGamePhase.InProgress)
 			index = -1;
+	}
+}
+
+public sealed class BingoNoRetreatGlobalItem : GlobalItem
+{
+	public override void OnHitPvp(Item item, Player player, Player target, Player.HurtInfo hurtInfo)
+	{
+		NoRetreat.ApplyToPvpVictim(player, target);
+	}
+}
+
+public sealed class BingoNoRetreatGlobalProjectile : GlobalProjectile
+{
+	public override void OnHitPlayer(Projectile projectile, Player target, Player.HurtInfo info)
+	{
+		if (projectile.owner is < 0 or >= Main.maxPlayers)
+			return;
+
+		NoRetreat.ApplyToPvpVictim(Main.player[projectile.owner], target);
 	}
 }

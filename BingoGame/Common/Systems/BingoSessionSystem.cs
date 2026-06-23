@@ -67,7 +67,7 @@ public sealed record BingoContributionStanding(int Rank, byte Team, string Playe
 public sealed class BingoWorldSystem : ModSystem
 {
 	public const byte SinglePlayerTeam = 2;
-	private const int SaveVersion = 5;
+	private const int SaveVersion = 6;
 	private const long TicksPerSecond = 60;
 	private static readonly int[] EmptyInts = Array.Empty<int>();
 	private static readonly byte[] EmptyBytes = Array.Empty<byte>();
@@ -91,6 +91,7 @@ public sealed class BingoWorldSystem : ModSystem
 	public static bool RandomStartEnabled { get; private set; }
 	public static bool RandomStartTeamTogether { get; private set; }
 	public static bool ForcePvpEnabled { get; private set; }
+	public static bool NoRetreatEnabled { get; private set; }
 	public static bool FogOfWarEnabled { get; private set; }
 	public static int[] InitialItemTypes { get; private set; } = EmptyInts;
 	public static IReadOnlyList<BingoClaimRecord> Claims => _claims;
@@ -132,6 +133,7 @@ public sealed class BingoWorldSystem : ModSystem
 		RandomStartEnabled = false;
 		RandomStartTeamTogether = false;
 		ForcePvpEnabled = false;
+		NoRetreatEnabled = false;
 		FogOfWarEnabled = false;
 		InitialItemTypes = EmptyInts;
 		_claims = new List<BingoClaimRecord>();
@@ -199,6 +201,7 @@ public sealed class BingoWorldSystem : ModSystem
 		tag["RandomStartEnabled"] = RandomStartEnabled;
 		tag["RandomStartTeamTogether"] = RandomStartTeamTogether;
 		tag["ForcePvpEnabled"] = ForcePvpEnabled;
+		tag["NoRetreatEnabled"] = NoRetreatEnabled;
 		tag["FogOfWarEnabled"] = FogOfWarEnabled;
 		List<ItemDefinition> initialDefinitions = new(InitialItemTypes.Length);
 		foreach (int itemType in InitialItemTypes)
@@ -283,6 +286,7 @@ public sealed class BingoWorldSystem : ModSystem
 		RandomStartEnabled = version >= 4 && tag.GetBool("RandomStartEnabled");
 		RandomStartTeamTogether = version >= 4 && tag.GetBool("RandomStartTeamTogether");
 		ForcePvpEnabled = version >= 4 && tag.GetBool("ForcePvpEnabled");
+		NoRetreatEnabled = version >= 6 && ForcePvpEnabled && tag.GetBool("NoRetreatEnabled");
 		FogOfWarEnabled = version >= 4 && tag.GetBool("FogOfWarEnabled");
 		if (version >= 4)
 		{
@@ -350,6 +354,7 @@ public sealed class BingoWorldSystem : ModSystem
 		writer.Write(RandomStartEnabled);
 		writer.Write(RandomStartTeamTogether);
 		writer.Write(ForcePvpEnabled);
+		writer.Write(NoRetreatEnabled);
 		writer.Write(FogOfWarEnabled);
 		writer.Write((ushort)Math.Min(InitialItemTypes.Length, ushort.MaxValue));
 		for (int i = 0; i < InitialItemTypes.Length && i < ushort.MaxValue; i++)
@@ -391,6 +396,7 @@ public sealed class BingoWorldSystem : ModSystem
 		bool randomStartEnabled = reader.ReadBoolean();
 		bool randomStartTeamTogether = reader.ReadBoolean();
 		bool forcePvpEnabled = reader.ReadBoolean();
+		bool noRetreatEnabled = reader.ReadBoolean();
 		bool fogOfWarEnabled = reader.ReadBoolean();
 		int initialItemCount = reader.ReadUInt16();
 		int[] initialItemTypes = new int[initialItemCount];
@@ -433,6 +439,7 @@ public sealed class BingoWorldSystem : ModSystem
 		RandomStartEnabled = randomStartEnabled;
 		RandomStartTeamTogether = randomStartTeamTogether;
 		ForcePvpEnabled = forcePvpEnabled;
+		NoRetreatEnabled = forcePvpEnabled && noRetreatEnabled;
 		FogOfWarEnabled = fogOfWarEnabled;
 		HashSet<int> sanitizedInitialItemTypes = new();
 		foreach (int itemType in initialItemTypes)
@@ -474,7 +481,7 @@ public sealed class BingoWorldSystem : ModSystem
 		bool whitelistEnabled, IReadOnlyList<int> whitelistTypes, IReadOnlyList<int> initialItemTypes,
 		bool timeLimitEnabled, int timeLimitMinutes, int timeLimitSeconds, bool lineProgressTiebreakEnabled,
 		bool lineAutoDegradeEnabled, bool killStealEnabled, float killStealChance, bool randomStartEnabled,
-		bool randomStartTeamTogether, bool forcePvpEnabled, bool fogOfWarEnabled,
+		bool randomStartTeamTogether, bool forcePvpEnabled, bool noRetreatEnabled, bool fogOfWarEnabled,
 		out BingoValidationFailure failure)
 	{
 		failure = default;
@@ -573,6 +580,7 @@ public sealed class BingoWorldSystem : ModSystem
 		RandomStartEnabled = randomStartEnabled;
 		RandomStartTeamTogether = randomStartTeamTogether;
 		ForcePvpEnabled = forcePvpEnabled;
+		NoRetreatEnabled = forcePvpEnabled && noRetreatEnabled;
 		FogOfWarEnabled = fogOfWarEnabled;
 		InitialItemTypes = initialItemSnapshot.ToArray();
 		_claims = new List<BingoClaimRecord>(prepared.Length);
@@ -835,6 +843,16 @@ public sealed class BingoWorldSystem : ModSystem
 			&& TryGetEffectiveTeam(victim, out byte victimTeam)
 			&& TryGetEffectiveTeam(killer, out byte killerTeam)
 			&& victimTeam != killerTeam;
+	}
+
+	internal static bool CanApplyNoRetreat(Player attacker, Player target)
+	{
+		return Phase == BingoGamePhase.InProgress && ForcePvpEnabled && NoRetreatEnabled
+			&& attacker != null && target != null && attacker.active && target.active
+			&& attacker.whoAmI != target.whoAmI
+			&& TryGetEffectiveTeam(attacker, out byte attackerTeam)
+			&& TryGetEffectiveTeam(target, out byte targetTeam)
+			&& attackerTeam != targetTeam;
 	}
 
 	private static bool TryGetEffectiveTeam(Player player, out byte team)
@@ -1198,6 +1216,7 @@ public sealed class BingoWorldSystem : ModSystem
 		RandomStartEnabled = false;
 		RandomStartTeamTogether = false;
 		ForcePvpEnabled = false;
+		NoRetreatEnabled = false;
 		FogOfWarEnabled = false;
 		InitialItemTypes = EmptyInts;
 	}

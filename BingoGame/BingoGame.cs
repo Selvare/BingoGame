@@ -97,14 +97,14 @@ public sealed class BingoGame : Mod
 		int[] whitelistTypes, int[] initialItemTypes, bool timeLimitEnabled, int timeLimitMinutes,
 		int timeLimitSeconds, bool lineProgressTiebreakEnabled, bool lineAutoDegradeEnabled,
 		bool killStealEnabled, float killStealChance, bool randomStartEnabled, bool randomStartTeamTogether,
-		bool forcePvpEnabled, bool fogOfWarEnabled)
+		bool forcePvpEnabled, bool noRetreatEnabled, bool fogOfWarEnabled)
 	{
 		if (Main.netMode == NetmodeID.SinglePlayer)
 		{
 			if (!BingoWorldSystem.TryStartGame(Main.myPlayer, size, rule, itemTypes, whitelistEnabled, whitelistTypes,
 				initialItemTypes, timeLimitEnabled, timeLimitMinutes, timeLimitSeconds,
 				lineProgressTiebreakEnabled, lineAutoDegradeEnabled, killStealEnabled, killStealChance,
-				randomStartEnabled, randomStartTeamTogether, forcePvpEnabled, fogOfWarEnabled,
+				randomStartEnabled, randomStartTeamTogether, forcePvpEnabled, noRetreatEnabled, fogOfWarEnabled,
 				out BingoValidationFailure failure))
 				BingoUISystem.SetValidationFailure(failure.Error, failure.CellIndex);
 			return;
@@ -134,6 +134,7 @@ public sealed class BingoGame : Mod
 		packet.Write(randomStartEnabled);
 		packet.Write(randomStartTeamTogether);
 		packet.Write(forcePvpEnabled);
+		packet.Write(noRetreatEnabled);
 		packet.Write(fogOfWarEnabled);
 		packet.Write((ushort)itemTypes.Length);
 		foreach (int itemType in itemTypes)
@@ -236,6 +237,7 @@ public sealed class BingoGame : Mod
 		bool randomStartEnabled = reader.ReadBoolean();
 		bool randomStartTeamTogether = reader.ReadBoolean();
 		bool forcePvpEnabled = reader.ReadBoolean();
+		bool noRetreatEnabled = reader.ReadBoolean();
 		bool fogOfWarEnabled = reader.ReadBoolean();
 		int count = reader.ReadUInt16();
 		if (count > 100)
@@ -271,7 +273,7 @@ public sealed class BingoGame : Mod
 		if (!BingoWorldSystem.TryStartGame(whoAmI, size, rule, itemTypes, whitelistEnabled, whitelistTypes,
 			initialItemTypes, timeLimitEnabled, timeLimitMinutes, timeLimitSeconds,
 			lineProgressTiebreakEnabled, lineAutoDegradeEnabled, killStealEnabled, killStealChance,
-			randomStartEnabled, randomStartTeamTogether, forcePvpEnabled, fogOfWarEnabled,
+			randomStartEnabled, randomStartTeamTogether, forcePvpEnabled, noRetreatEnabled, fogOfWarEnabled,
 			out BingoValidationFailure failure))
 			SendStartRejected(whoAmI, failure);
 	}

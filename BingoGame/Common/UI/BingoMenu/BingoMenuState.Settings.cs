@@ -60,15 +60,19 @@ internal sealed partial class BingoMenuState
 		ruleRow.AddWeighted(ruleLabel, 4f, 120f);
 		ruleRow.AddWeighted(ruleControls, 6f, 180f);
 
-		UIVerticalStack lineRuleOptions = new(6f);
+		UIPanel lineRuleOptions = CreateSubOptionPanel();
 		if (_draftRule == BingoWinRule.Line)
 		{
-			lineRuleOptions.AddFixed(CreateSubToggle(panel, Text("UI.LineProgressTiebreak"),
+			UIVerticalStack lineRuleOptionList = new(6f);
+			lineRuleOptionList.Width.Set(0f, 1f);
+			lineRuleOptionList.Height.Set(0f, 1f);
+			lineRuleOptionList.AddFixed(CreateSubToggleRow(panel, Text("UI.LineProgressTiebreak"),
 				Text("UI.AdvancedTooltips.LineProgressTiebreak"), gameConfig.LineProgressTiebreakEnabled,
-				ToggleLineProgressTiebreak), 58f);
-			lineRuleOptions.AddFixed(CreateSubToggle(panel, Text("UI.LineAutoDegrade"),
+				ToggleLineProgressTiebreak), 50f);
+			lineRuleOptionList.AddFixed(CreateSubToggleRow(panel, Text("UI.LineAutoDegrade"),
 				Text("UI.AdvancedTooltips.LineAutoDegrade"), gameConfig.LineAutoDegradeEnabled,
-				ToggleLineAutoDegrade), 58f);
+				ToggleLineAutoDegrade), 50f);
+			lineRuleOptions.Append(lineRuleOptionList);
 		}
 
 		UIHorizontalStack timeLimitRow = new(12f);
@@ -160,7 +164,7 @@ internal sealed partial class BingoMenuState
 
 	private void BuildAdvancedSettings()
 	{
-		BingoResponsivePanel panel = CreateWindow(BingoWindowPage.AdvancedSettings, 560f, 500f, 620f, 540f);
+		BingoResponsivePanel panel = CreateWindow(BingoWindowPage.AdvancedSettings, 560f, 560f, 620f, 600f);
 		UIVerticalStack root = CreateRootStack(10f, 8f);
 		BingoGameConfig config = GetGameConfig();
 		BingoAdaptiveText title = CreateText(panel, Text("UI.AdvancedOptions"), 0.5f, 0.5f, 1.2f,
@@ -178,8 +182,12 @@ internal sealed partial class BingoMenuState
 				Text("UI.AdvancedTooltips.RandomStartTeamTogether"), config.RandomStartTeamTogether,
 				ToggleRandomStartTeamTogether), 58f);
 
-		UIHorizontalStack forcePvpRow = CreateToggleRow(panel, Text("UI.ForcePvp"), config.ForcePvpEnabled,
-			ToggleForcePvp, Text("UI.AdvancedTooltips.ForcePvp"));
+		UIVerticalStack forcePvpGroup = CreateOptionGroup(panel, Text("UI.ForcePvp"),
+			Text("UI.AdvancedTooltips.ForcePvp"), config.ForcePvpEnabled, ToggleForcePvp);
+		if (config.ForcePvpEnabled)
+			forcePvpGroup.AddFixed(CreateSubToggle(panel, Text("UI.NoRetreat"),
+				Text("UI.AdvancedTooltips.NoRetreat"), config.NoRetreatEnabled,
+				ToggleNoRetreat), 58f);
 		UIHorizontalStack fogOfWarRow = CreateToggleRow(panel, Text("UI.FogOfWar"), config.FogOfWarEnabled,
 			ToggleFogOfWar, Text("UI.AdvancedTooltips.FogOfWar"));
 
@@ -190,7 +198,7 @@ internal sealed partial class BingoMenuState
 		root.AddFixed(title, 36f);
 		root.AddFixed(killStealGroup, config.KillStealEnabled ? 132f : 52f);
 		root.AddFixed(randomStartGroup, config.RandomStartEnabled ? 116f : 52f);
-		root.AddFixed(forcePvpRow, 46f);
+		root.AddFixed(forcePvpGroup, config.ForcePvpEnabled ? 116f : 52f);
 		root.AddFixed(fogOfWarRow, 46f);
 		root.AddWeighted(new UIElement(), 1f);
 		root.AddFixed(footer, 46f);
@@ -249,14 +257,20 @@ internal sealed partial class BingoMenuState
 		Action toggle)
 	{
 		UIPanel subPanel = CreateSubOptionPanel();
+		subPanel.Append(CreateSubToggleRow(panel, label, tooltip, enabled, toggle));
+		return subPanel;
+	}
+
+	private UIHorizontalStack CreateSubToggleRow(BingoResponsivePanel panel, string label, string tooltip,
+		bool enabled, Action toggle)
+	{
 		UIHorizontalStack row = new(10f);
 		row.Width.Set(0f, 1f);
 		row.Height.Set(0f, 1f);
 		row.AddWeighted(CreateLabelWithHelp(panel, label, tooltip), 5f, 160f);
 		row.AddWeighted(CreateButton(panel, Text(enabled ? "UI.Enabled" : "UI.Disabled"), toggle, enabled,
 			backgroundColor: enabled ? BingoUITheme.SuccessBackground : null), 4f, 110f);
-		subPanel.Append(row);
-		return subPanel;
+		return row;
 	}
 
 	private static UIPanel CreateSubOptionPanel()
@@ -452,6 +466,8 @@ internal sealed partial class BingoMenuState
 
 	private void ToggleForcePvp() => ToggleAdvancedFlag(config => config.ForcePvpEnabled = !config.ForcePvpEnabled);
 
+	private void ToggleNoRetreat() => ToggleAdvancedFlag(config => config.NoRetreatEnabled = !config.NoRetreatEnabled);
+
 	private void ToggleFogOfWar() => ToggleAdvancedFlag(config => config.FogOfWarEnabled = !config.FogOfWarEnabled);
 
 	private void ToggleLineProgressTiebreak()
@@ -559,6 +575,7 @@ internal sealed partial class BingoMenuState
 			whitelistTypes, initialItemTypes, config.TimeLimitEnabled, config.TimeLimitMinutes,
 			config.TimeLimitSeconds, config.LineProgressTiebreakEnabled, config.LineAutoDegradeEnabled,
 			config.KillStealEnabled, config.KillStealChance, config.RandomStartEnabled,
-			config.RandomStartTeamTogether, config.ForcePvpEnabled, config.FogOfWarEnabled);
+			config.RandomStartTeamTogether, config.ForcePvpEnabled, config.NoRetreatEnabled,
+			config.FogOfWarEnabled);
 	}
 }

@@ -14,6 +14,7 @@ UI: {
 	RandomStart: Random start
 	RandomStartTeamTogether: Team follows
 	ForcePvp: PVP mode
+	NoRetreat: No retreat
 	FogOfWar: Fog of war
 	Minutes: Minutes
 	Seconds: Seconds
@@ -139,9 +140,17 @@ UI: {
 		RandomStart: At the start of the match, all players are randomly teleported to locations on the map.
 		RandomStartTeamTogether: Players on the same team are assigned to the same random starting location.
 		ForcePvp: All players are forced into PvP mode for the duration of the match.
+		NoRetreat: While PVP mode is enabled, players cannot teleport for a short time after taking damage from an opposing player.
 		FogOfWar: Icons representing players from opposing teams and bosses are hidden on the map.
-		LineProgressTiebreak: When settlement would draw, compare each team's best row, column, or diagonal progress first.
-		LineAutoDegrade: If line progress still cannot decide a winner, fall back to comparing total score.
+		LineProgressTiebreak: In the event of a tie, compare the maximum line-completion progress (across rows, columns, and diagonals) achieved by each team.
+		LineAutoDegrade: In the event of a tie, fall back to comparing the total scores of each team. (This rule has the lowest priority.)
+	}
+}
+
+Buffs: {
+	NoRetreat: {
+		DisplayName: No Retreat
+		Description: Warriors should face death without fear
 	}
 }
 
@@ -352,6 +361,11 @@ Configs: {
 		ForcePvpEnabled: {
 			Label: Enable PVP mode
 			Tooltip: When enabled, players are forced into PVP while the game is in progress.
+		}
+
+		NoRetreatEnabled: {
+			Label: Enable no retreat
+			Tooltip: When enabled, taking damage from an opposing player gives the victim 5 seconds of No Retreat, preventing teleportation.
 		}
 
 		FogOfWarEnabled: {

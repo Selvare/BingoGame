@@ -14,6 +14,7 @@ UI: {
 	RandomStart: 开局随机
 	RandomStartTeamTogether: 同队跟随
 	ForcePvp: PVP 模式
+	NoRetreat: 死战不退
 	FogOfWar: 战争迷雾
 	Minutes: 分钟
 	Seconds: 秒
@@ -139,9 +140,17 @@ UI: {
 		RandomStart: 开局时所有玩家会被随机传送到地图某处。
 		RandomStartTeamTogether: 相同队伍的玩家会随机到相同的落点。
 		ForcePvp: 对局进行中，所有玩家会被强制设为 PVP 。
+		NoRetreat: 启用 PVP 模式时，玩家受到其他队伍玩家伤害后会在短时间内无法传送。
 		FogOfWar: 地图将隐藏非相同队伍的玩家图标和 BOSS 图标。
-		LineProgressTiebreak: 结算平局时，优先比较各队在行、列、对角线中的最大连线进度。
-		LineAutoDegrade: 连线进度仍无法决出胜负时，退化为比较各队总得分。
+		LineProgressTiebreak: 结算平局时，比较各队在行、列、对角线中的最大连线进度。
+		LineAutoDegrade: 结算平局时，退化为比较各队总得分。（该规则生效的优先级最低）
+	}
+}
+
+Buffs: {
+	NoRetreat: {
+		DisplayName: 死战不退
+		Description: 战士应当视死如归
 	}
 }
 
@@ -352,6 +361,11 @@ Configs: {
 		ForcePvpEnabled: {
 			Label: 启用 PVP 模式
 			Tooltip: 启用后，对局进行中玩家会被强制设为 PVP。
+		}
+
+		NoRetreatEnabled: {
+			Label: 启用死战不退
+			Tooltip: 启用后，玩家受到其他队伍玩家伤害时会获得 5 秒死战不退，期间无法传送。
 		}
 
 		FogOfWarEnabled: {

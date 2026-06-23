@@ -51,6 +51,9 @@ public sealed class BingoGameConfig : ModConfig
 	public bool ForcePvpEnabled;
 
 	[DefaultValue(false)]
+	public bool NoRetreatEnabled;
+
+	[DefaultValue(false)]
 	public bool FogOfWarEnabled;
 
 	public List<BingoWhitelistEntry> Whitelists = new();
